@@ -26,7 +26,6 @@ const ORIENTATION_ENUM = {
   ROW: 'ROW',
   COLUMN: 'COLUMN'
 }
-const {generatePZHTemplte1} = require('./templates/crossword_template1');
 
 function randomIntBetweenRange(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -169,36 +168,6 @@ const getRandomizedClueLengthAgainstType = (type) => {
   }
 };
 
-// const getClueWithSpecificAnswerPattern = async (pattern) => {
-//   try {
-//     const { totalLength, nonDashCharacters } = pattern;
-//     let matchStage;
-
-//     if (nonDashCharacters.length === 0) {
-//       matchStage = { $expr: { $eq: [{ $strLenCP: "$answers.text" }, totalLength] } };
-//     } else {
-//       let regexPattern = nonDashCharacters.reduce((acc, { position, character }) => {
-//         acc[position] = character;
-//         return acc;
-//       }, Array(totalLength).fill('.')).join('');
-
-//       matchStage = { "answers.text": { $regex: `^${regexPattern}$` } };
-//     }
-
-//     const clues = await Clue.aggregate([
-//       { $unwind: "$answers" },
-//       { $match: matchStage },
-//       { $project: { question: 1, 'answers.text': 1 } },
-//       { $sample: { size: 1 } }
-//     ]);
-
-//     return clues.length ? { clue: clues[0].question, answer: clues[0].answers.text } : null;
-//   } catch (error) {
-//     console.error("Error fetching clue from the database:", error);
-//     throw error;
-//   }
-// };
-
 const getClueWithSpecificAnswerPattern = async (pattern, commonAlphabets = true) => {
   try {
     const {totalLength, nonDashCharacters} = pattern;
@@ -290,50 +259,6 @@ const getClueForFilledWordStructure = async (wordStructure) => {
     throw error;
   }
 };
-
-
-const getClueWithSpecificAnswerPattern_ = async (pattern) => {
-  console.log('pattern', pattern)
-  try {
-    const {totalLength, nonDashCharacters} = pattern;
-
-    // If there are no specific characters to match (all dashes),
-    // fetch any clue of the appropriate length.
-    if (nonDashCharacters.length === 0) {
-      return await getClueAgainstAnswerLength(totalLength);
-    }
-
-    // Use aggregation to match the answers array elements that have the correct length
-    const clues = await Clue.aggregate([
-      {$match: {"answers.length": totalLength}},
-      {$unwind: "$answers"},
-      {$match: {"answers.length": totalLength}},
-      {$sample: {size: 10}}, // Get a sample of documents to manually filter later
-    ]);
-
-    // Filter to find a matching pattern
-    for (let clue of clues) {
-      if (
-        nonDashCharacters.every(
-          (ndc) => clue.answers.text[ndc.position] === ndc.character
-        )
-      ) {
-        return {
-          clue: clue.question,
-          answer: clue.answers.text,
-        };
-      }
-    }
-
-    console.log("No clue found for the given pattern");
-    return null;
-  } catch (error) {
-    console.error("Error fetching clue from the database:", error);
-    throw error;
-  }
-};
-
-//
 
 function gridAnalysisForLargeWords() {
   const gridSize = gridSnapshot.length; // Assuming a square grid
@@ -525,17 +450,6 @@ const getAnswerStartingIndex = (orientation, answerLength, clueIndexI, clueIndex
   };
 };
 
-//generate all Large sized words:
-const addLargetypeWordsToGrid = () => {
-  // do all the pre generation analysis here
-  //step#1, find the positions of Anchor Points, try to branch Large words with these points.
-  //analyize the anchor points by fetching XL words orientatios and thier paths. Use these to position large words.
-};
-
-const getLargeWordsWithAnchorBranching = () => {
-  //
-};
-
 const generateAndPlaceALargeWord = async (puzzleState) => {
   console.log(colors.blue("Adding Large Size Word Now."));
   let nextB2BClue;
@@ -572,12 +486,12 @@ const generateAndPlaceALargeWord = async (puzzleState) => {
 
 };
 
-function generateCrosswordFromDiary(clueDiary) {
+function generateCrosswordFromDiary(clueDiary, gridSize) {
   const crossword = {
     crosswordId: "cw-custom-generated",
     title: "Generated Crossword",
     date: new Date().toISOString().split('T')[0], // Today's date
-    gridSize: 9,
+    gridSize: gridSize,
     clues: {
       across: [],
       down: []
@@ -612,308 +526,7 @@ function generateCrosswordFromDiary(clueDiary) {
   return crossword.clues;
 }
 
-// 
-function generateCellsArrayFromDiary_backup(clueDiary) {
-  const cells = {};
-  const processedClueIndices = new Set();
-
-  Object.keys(clueDiary).forEach(sizeKey => {
-    clueDiary[sizeKey].forEach(clueObj => {
-      const clueIndexKey = `${clueObj.clueIndex.clueIndexI},${clueObj.clueIndex.clueIndexJ}`;
-      if (processedClueIndices.has(clueIndexKey)) {
-        // Skip processing for already utilized clueIndex
-        return;
-      }
-      processedClueIndices.add(clueIndexKey);
-
-      const {answer} = clueObj.clueObject;
-      let {answerStartingIndexI, answerStartingIndexJ} = clueObj.startingIndex;
-
-      for (let i = 0; i < answer.length; i++) {
-        const cellKey = `${answerStartingIndexI},${answerStartingIndexJ}`;
-        if (!cells[cellKey]) {
-          cells[cellKey] = {
-            content: answer[i],
-            actualContent: answer[i],
-            status: "UNFILLED",
-            clueNumbers: [clueObj.clueNumber.toString()],
-            isCircled: false,
-            type: "",
-            index: {x: answerStartingIndexJ, y: answerStartingIndexI},
-            indicator: {
-              isStartingIndex: i === 0,
-              type: clueObj.directionFlow,
-            },
-            cellValue: 0,
-          };
-        } else {
-          // Cell already exists, so we add the clue number to it
-          cells[cellKey].clueNumbers.push(clueObj.clueNumber.toString());
-        }
-
-        // Adjust index based on orientation
-        if (clueObj.orientation === "ROW") {
-          answerStartingIndexJ++;
-        } else {
-          answerStartingIndexI++;
-        }
-      }
-    });
-  });
-
-  // Convert the cells object to an array format
-  const cellsArray = Object.values(cells);
-  return cellsArray;
-}
-
-
-function generateCellsArrayFromDiary_backup(clueDiary) {
-  const cells = {};
-  const processedClueIndices = new Set();
-
-  Object.keys(clueDiary).forEach(sizeKey => {
-    clueDiary[sizeKey].forEach(clueObj => {
-      const clueIndexKey = `${clueObj.clueIndex.clueIndexI},${clueObj.clueIndex.clueIndexJ}`;
-      if (processedClueIndices.has(clueIndexKey)) {
-        return; // Skip processing for already utilized clueIndex
-      }
-      processedClueIndices.add(clueIndexKey);
-
-      const {answer} = clueObj.clueObject;
-      let {answerStartingIndexI, answerStartingIndexJ} = clueObj.startingIndex;
-
-      for (let i = 0; i < answer.length; i++) {
-        const cellKey = `${answerStartingIndexI},${answerStartingIndexJ}`;
-        if (!cells[cellKey]) {
-          cells[cellKey] = {
-            content: answer[i],
-            actualContent: answer[i],
-            status: "UNFILLED",
-            clueNumbers: [clueObj.clueNumber.toString()],
-            isCircled: false,
-            type: "",
-            // Corrected index assignment
-            index: {x: answerStartingIndexI, y: answerStartingIndexJ},
-            indicator: {
-              isStartingIndex: i === 0,
-              type: clueObj.directionFlow,
-            },
-            cellValue: 0,
-          };
-        } else {
-          cells[cellKey].clueNumbers.push(clueObj.clueNumber.toString());
-        }
-
-        if (clueObj.orientation === "ROW") {
-          answerStartingIndexJ++; // Move right in the same row
-        } else {
-          answerStartingIndexI++; // Move down in the same column
-        }
-      }
-    });
-  });
-
-  return Object.values(cells);
-}
-
-function generateCellsArrayFromDiary1(clueDiary) {
-  console.log(colors.bgBrightMagenta('********************************************'))
-  console.log(colors.bgBrightMagenta('********************************************'))
-  console.log(colors.bgBrightMagenta('********************************************'))
-  console.log(colors.bgBrightMagenta('********************************************'))
-
-  const cells = {};
-
-  // Loop through each clue size category
-  Object.keys(clueDiary).forEach(sizeKey => {
-    clueDiary[sizeKey].forEach(clueObj => {
-      const {answer} = clueObj.clueObject;
-      let answerStartingIndexI = clueObj.startingIndex.answerStartingIndexI;
-      let answerStartingIndexJ = clueObj.startingIndex.answerStartingIndexJ;
-
-      // Loop through each character in the answer
-      for (let i = 0; i < answer.length; i++) {
-        // Calculate current position based on orientation and iteration
-        let currentIndexI = answerStartingIndexI + (clueObj.orientation === "COLUMN" ? i : 0);
-        let currentIndexJ = answerStartingIndexJ + (clueObj.orientation === "ROW" ? i : 0);
-        const cellKey = `${currentIndexI},${currentIndexJ}`;
-        // console.log('currentIndexI', currentIndexI, 'currentIndexJ', currentIndexJ, 'cellKey', cellKey);
-
-
-        if (!cells[cellKey]) {
-          cells[cellKey] = {
-            easyIndex: cellKey,
-            content: answer[i],
-            actualContent: answer[i],
-            status: "FILLED",
-            clueNumbers: [clueObj.clueNumber.toString()],
-            isCircled: false,
-            type: "",
-            index: {x: currentIndexI, y: currentIndexJ},
-            indicator: {
-              isStartingIndex: i === 0,
-              type: clueObj.directionFlow,
-            },
-            cellValue: 0,
-          };
-        } else {
-          if (!cells[cellKey].clueNumbers.includes(clueObj.clueNumber.toString())) {
-            cells[cellKey].clueNumbers.push(clueObj.clueNumber.toString());
-          }
-        }
-      }
-    });
-  });
-
-  // Convert the cells object into an array format for easier processing downstream
-  return Object.values(cells);
-
-}
-
-// function updateCellsWithCounter(cells, counter) {
-//     // Ensure cells is actually an array
-//     if (!Array.isArray(cells)) {
-//       console.error('Input is not an array:', cells);
-//       return cells; // or handle this situation appropriately
-//     }
-
-//     // First, filter cells with exactly two clueNumbers
-//     let eligibleCells = cells.filter(cell => cell.clueNumbers.length === 2);
-
-//     // If there aren't enough, add cells with one clueNumber to fill up to 8
-//     if (eligibleCells.length < 8) {
-//       const backupCells = cells.filter(cell => cell.clueNumbers.length === 1);
-//       const needed = 8 - eligibleCells.length;
-//       eligibleCells = eligibleCells.concat(backupCells.slice(0, needed));
-//     }
-
-//     // Randomly select up to 8 cells if there are more than 8 eligible cells
-//     const selectedCells = eligibleCells.length <= 8 ? eligibleCells : eligibleCells.sort(() => 0.5 - Math.random()).slice(0, 8);
-
-//     // Update the cell values and mark as circled
-//     selectedCells.forEach((cell, index) => {
-//       cell.cellValue = index + 1; // Start cellValue from 1 to 8
-//       cell.isCircled = true;
-//     });
-
-//     return cells; // Return the full array with updated cells
-// }
-
-function updateCellsWithCounter(cells) {
-  // Ensure cells is actually an array
-  if (!Array.isArray(cells)) {
-    console.error('Input is not an array:', cells);
-    return cells; // or handle this situation appropriately
-  }
-
-  // Shuffle the entire array of cells and pick the first 8
-  const shuffledCells = cells.sort(() => 0.5 - Math.random()).slice(0, 8);
-
-  // Update the cell values and mark as circled
-  shuffledCells.forEach((cell, index) => {
-    cell.cellValue = index + 1; // Start cellValue from 1 to 8
-    cell.isCircled = true;
-  });
-
-  return cells; // Return the full array with updated cells
-}
-
-// async function updateCellsWithLousing(cells) {
-//   let attempts = 0;
-//   let lousingWord = undefined;
-//   while (attempts < 10) {
-//     const lousingObject = await getRandomLosuing();
-//     lousingWord = lousingObject.Aasseite;  // Double-check the property name
-//     console.log('lousingWord', lousingWord);
-
-//     if (!lousingWord) {
-//       console.error('Lousing word is undefined:', lousingObject);
-//       attempts++;
-//       continue;  // Skip this iteration if lousingWord is undefined
-//     }
-
-//     const lousingChars = lousingWord.split('');
-//     console.log('lousingChars', lousingChars)
-//     const matchedCells = [];
-
-//     lousingChars.forEach(char => {
-//       const cell = cells.find(c => c.actualContent.toUpperCase() === char.toUpperCase() && (!matchedCells.includes(c)));
-
-//       if (cell) {
-//         matchedCells.push(cell);
-//       }
-//     });
-
-//     if (matchedCells.length === 8) {
-//       matchedCells.forEach((cell, index) => {
-//         cell.cellValue = index + 1;
-//         cell.isCircled = true;
-//       });
-//       return {cells, lousingWord};
-//     }
-
-//     attempts++;
-//   }
-
-//   console.error('Failed to find a suitable losuing word after 10 attempts');
-//   return false;
-// }
-
-async function updateCellsWithLousing_backup250624(cells) {
-  console.log('inside updateCellsWithLousing')
-  let attempts = 0;
-  let lousingWord = undefined;
-  let attemptsLimit = 100;
-
-
-  while (attempts < attemptsLimit) {
-    const lousingObject = await getRandomLosuing();
-    lousingWord = lousingObject.Aasseite;
-    if (!lousingWord) {
-      console.error('Lousing word is undefined:', lousingObject);
-      attempts++;
-      continue;  // Skip this iteration if lousingWord is undefined
-    }
-
-    const lousingChars = lousingWord.split('');
-    // console.log('lousingChars', lousingChars);
-    const matchedCells = [];
-    let cluesWithCircledCell = new Set(); // To track clues that already have a circled cell
-    lousingChars.forEach(char => {
-      // Select non-intersection cells (those belonging to exactly one clue)
-      const cell = cells.find(c =>
-
-        c.actualContent.toUpperCase() === char.toUpperCase() &&
-        // c.clueNumbers.length === 1 &&
-        !cluesWithCircledCell.has(c.clueNumbers[0]) &&
-        (!matchedCells.includes(c))
-      );
-      // console.log(colors.bgRed('c.clueNumbers.length', c.clueNumbers.length))
-
-      if (cell) {
-        // console.log(colors.bgRed('inside cell if', cell))
-        matchedCells.push(cell);
-        cluesWithCircledCell.add(cell.clueNumbers[0]); // Add clue number to the set
-      }
-    });
-    // console.log(colors.bgRed(matchedCells, matchedCells.length))
-    if (matchedCells.length === 8) {
-      matchedCells.forEach((cell, index) => {
-        cell.cellValue = index + 1;
-        cell.isCircled = true;
-      });
-
-      return {cells, lousingWord: lousingWord.toUpperCase()};
-    }
-
-    attempts++;
-  }
-
-  console.error(`Failed to find a suitable lousing word after ${attemptsLimit} attempts`);
-  return false;
-}
-
-async function updateCellsWithLousing(cells) {
+async function updateCellsWithLousing(cells, gridSize) {
   console.log('inside updateCellsWithLousing');
   let attempts = 0;
   let lousingWord = undefined;
@@ -945,11 +558,11 @@ async function updateCellsWithLousing(cells) {
       if (cell) {
         matchedCells.push(cell);
         cell.clueNumbers.forEach(clueNumber => cluesWithCircledCell.add(clueNumber));
-        if (matchedCells.length === 8) break; // Stop if enough cells are matched
+        if (matchedCells.length === gridSize - 1) break; // Stop if enough cells are matched
       }
     }
 
-    if (matchedCells.length === 8) {
+    if (matchedCells.length === gridSize - 1) {
       matchedCells.forEach((cell, index) => {
         cell.cellValue = index + 1;
         cell.isCircled = true;
@@ -966,9 +579,9 @@ async function updateCellsWithLousing(cells) {
 }
 
 
-function generateCellsArrayFromDiary(clueDiary) {
+function generateCellsArrayFromDiary(clueDiary, gridSize) {
 
-  const gridLimit = 9; // Assuming a 9x9 grid, adjust as necessary
+  const gridLimit = gridSize; // Assuming a 9 grid, adjust as necessary
   const cells = {};
 
   // Loop through each clue size category
@@ -1197,7 +810,7 @@ const fetchLargeWordOptionsAgainstXLWord = async (puzzleState, clueDiaryObj) => 
         } else if (clueDiaryObj.startingIndex.answerStartingIndexI === 8) {
           let currentClueLength = getRandomizedClueLengthAgainstType("L");
           // Attempting to start from just above the bottom-most position to ensure intersection
-          let potentialStartingIndexI = 8 - currentClueLength + 1; // Adjust to allow for intersection
+          let potentialStartingIndexI = puzzleState.gridSize - 1 - currentClueLength + 1; // Adjust to allow for intersection
 
           let clueIndexJRangeStartingPoint = clueDiaryObj.startingIndex.answerStartingIndexJ;
           let clueIndexJRangeEndingPoint = clueIndexJRangeStartingPoint + clueDiaryObj.clueObject.answer.length - 1;
@@ -1211,7 +824,7 @@ const fetchLargeWordOptionsAgainstXLWord = async (puzzleState, clueDiaryObj) => 
             }
 
             // Ensure the last row (where XL word is placed) can serve as an intersection point
-            if (puzzleState.gridSnapshot[8][clueIndexJ] !== null && puzzleState.gridSnapshot[8][clueIndexJ] !== '*' && puzzleState.gridSnapshot[8][clueIndexJ] !== '#') {
+            if (puzzleState.gridSnapshot[puzzleState.gridSize - 1][clueIndexJ] !== null && puzzleState.gridSnapshot[puzzleState.gridSize - 1][clueIndexJ] !== '*' && puzzleState.gridSnapshot[puzzleState.gridSize - 1][clueIndexJ] !== '#') {
               flag = true;
             } else {
               continue;
@@ -1225,7 +838,7 @@ const fetchLargeWordOptionsAgainstXLWord = async (puzzleState, clueDiaryObj) => 
           let isSpaceAvailable = true;
 
           // Check if there is enough space for the Large word vertically above and includes the intersection
-          for (let i = potentialStartingIndexI; i < 8; i++) { // Stop before the last row
+          for (let i = potentialStartingIndexI; i < puzzleState.gridSize - 1; i++) { // Stop before the last row
             if (puzzleState.gridSnapshot[i][clueIndexJ] === null) {
               wordStructure += '-';
             } else if (puzzleState.gridSnapshot[i][clueIndexJ] !== '*' || puzzleState.gridSnapshot[i][clueIndexJ] !== '#' || puzzleState.gridSnapshot[i][clueIndexJ] !== undefined) {
@@ -1261,7 +874,7 @@ const fetchLargeWordOptionsAgainstXLWord = async (puzzleState, clueDiaryObj) => 
         } else {
           // console.log("lets get XL words pre and post lengths now: ");
           // console.log("clueDiaryObj.startingIndex.answerStartingIndexI",clueDiaryObj.startingIndex.answerStartingIndexI);
-          let post = 8 - clueDiaryObj.startingIndex.answerStartingIndexI;
+          let post = puzzleState.gridSize - 1 - clueDiaryObj.startingIndex.answerStartingIndexI;
           let pre = clueDiaryObj.startingIndex.answerStartingIndexI;
           // console.log("pre: ",pre,"post",post,"currentClueLength",currentClueLength);
           //
@@ -1288,13 +901,13 @@ const fetchLargeWordOptionsAgainstXLWord = async (puzzleState, clueDiaryObj) => 
               do {
 
                 //randomIntBetweenRange(0, (pre-1));
-                let startIndexIRange = randomIntBetweenRange(0, (9 - currentClueLength - 1));
+                let startIndexIRange = randomIntBetweenRange(0, (puzzleState.gridSize - currentClueLength - 1));
                 console.log('trying to fetch with clueStartIndex.indexJ', clueStartIndex.indexJ, 'inside fetchLargeWordOptionsAgainstXLWord ** startIndexIRange, ', startIndexIRange, 'currentClueLength', currentClueLength);
                 ;
                 let sum = startIndexIRange + currentClueLength;
                 let wordStructure = "";
                 // console.log(colors.yellow('sum: ',sum));
-                if (sum < 9) {
+                if (sum < puzzleState.gridSize) {
                   let alphabetsCounts = 0;
                   for (let i = startIndexIRange; i < sum; i++) {
                     if (puzzleState.gridSnapshot[i][clueIndexJ] !== null && puzzleState.gridSnapshot[i][clueIndexJ] != '*' && puzzleState.gridSnapshot[i][clueIndexJ] != '#') {
@@ -1401,7 +1014,7 @@ const fetchLargeWordOptionsAgainstXLWord = async (puzzleState, clueDiaryObj) => 
             continue;
           }
           let wordStructure = '';
-          for (let j = 0; j <= 8; j++) {
+          for (let j = 0; j <= puzzleState.gridSize - 1; j++) {
             if (puzzleState.gridSnapshot[currentClueIndexI][j] === undefined) {
               break;
             }
@@ -1778,9 +1391,9 @@ const scanGridForPossibleClues = async (orientation) => {
   let str = '';
   switch (orientation) {
     case 'ROW':
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < gridSnapshot.length; i++) {
         str = '';
-        for (let j = 0; j < 9; j++) {
+        for (let j = 0; j < gridSnapshot.length; j++) {
           //get full row wordStructure and make break it into possible clue options:
           if (gridSnapshot[i][j] === null) {
             str += '-';
@@ -1799,374 +1412,9 @@ const scanGridForPossibleClues = async (orientation) => {
   }
 };
 
-function identifyEmptySpaces(gridSnapshot) {
-  const potentialPlacements = {
-    rows: [],
-    columns: []
-  };
-
-  // Row-wise analysis
-  gridSnapshot.forEach((row, rowIndex) => {
-    const rowString = row.join('');
-    let match;
-    const regex = /\.{2,}/g; // Regex to find sequences of two or more dots
-    while ((match = regex.exec(rowString)) !== null) {
-      potentialPlacements.rows.push({
-        start: match.index,
-        length: match[0].length,
-        rowIndex: rowIndex
-      });
-    }
-  });
-
-  // Column-wise analysis
-  const columnCount = gridSnapshot[0].length;
-  for (let colIndex = 0; colIndex < columnCount; colIndex++) {
-    let columnString = '';
-    for (let rowIndex = 0; rowIndex < gridSnapshot.length; rowIndex++) {
-      columnString += gridSnapshot[rowIndex][colIndex];
-    }
-    let match;
-    const regex = /\.{2,}/g; // Regex to find sequences of two or more dots
-    while ((match = regex.exec(columnString)) !== null) {
-      potentialPlacements.columns.push({
-        start: match.index,
-        length: match[0].length,
-        colIndex: colIndex
-      });
-    }
-  }
-
-  return potentialPlacements;
-}
-
-// function analyzeWordStructureAndSuggestClue(wordStructure) {
-//   const sizeRanges = {
-//       XL: { min: 8, max: 9 },
-//       L: { min: 5, max: 7 },
-//       M: { min: 4, max: 4 },
-//       S: { min: 1, max: 3 },
-//   };
-
-//   let bestSegment = '';
-//   let bestSegmentIndex = -1; // Position of best segment within the word structure
-//   let totalIntersections = 0;
-//   let startingIndex = -1;
-
-//   // Split the wordStructure on clue markers to handle segments separately
-//   const segments = wordStructure.split(/[*#]/);
-//   segments.forEach((segment, index) => {
-//       const intersectionCount = (segment.match(/[A-Z]/gi) || []).length;
-//       if (intersectionCount > 0 && segment.length > bestSegment.length) {
-//           bestSegment = segment;
-//           bestSegmentIndex = index;
-//           totalIntersections = intersectionCount;
-//           startingIndex = wordStructure.indexOf(segment);
-//       }
-//   });
-
-//   const determineClueSize = (length) => {
-//       for (const [size, range] of Object.entries(sizeRanges)) {
-//           if (length >= range.min && length <= range.max) {
-//               return size;
-//           }
-//       }
-//       return 'S'; // Default to S if no range is matched
-//   };
-
-//   const clueAnswerLength = bestSegment.length;
-//   const clueSize = determineClueSize(clueAnswerLength);
-
-//   return {
-//       clueAnswerStructure: bestSegment,
-//       clueAnswerLength: clueAnswerLength,
-//       intersections: totalIntersections,
-//       clueSize: clueSize,
-//       startingIndex: startingIndex // Include starting index of the clue
-//   };
-// }
-
-// function analyzeWordStructureAndSuggestClue(wordStructure, orientation, index, gridSnapshot) {
-//   const sizeRanges = {
-//       XL: { min: 8, max: 9 },
-//       L: { min: 5, max: 7 },
-//       M: { min: 4, max: 4 },
-//       S: { min: 1, max: 3 },
-//   };
-
-//   let bestSegment = '';
-//   let totalIntersections = 0;
-//   let startingIndex = -1;
-//   let clueIndex = { indexI: -1, indexJ: -1 }; // Adjusted for consistency
-
-//   // Identify the longest segment that includes at least one letter (intersection)
-//   const segments = wordStructure.split(/[*#]/);
-//   segments.forEach((segment, segmentIndex) => {
-//       const intersectionCount = (segment.match(/[A-Z]/gi) || []).length;
-//       if (intersectionCount > 0 && segment.length > bestSegment.length) {
-//           bestSegment = segment;
-//           totalIntersections = intersectionCount;
-//           startingIndex = wordStructure.indexOf(segment, startingIndex + 1); // Update starting index for next search
-//       }
-//   });
-
-//   const clueAnswerLength = bestSegment.length;
-//   const clueSize = Object.keys(sizeRanges).find(size => clueAnswerLength >= sizeRanges[size].min && clueAnswerLength <= sizeRanges[size].max) || 'S';
-
-//   // Determine clue placement based on orientation and constraints
-//   const determineClueIndex = () => {
-//       if (orientation === 'ROW') {
-//           // For ROW orientation, check for valid placements around the start of the segment
-//           if (startingIndex > 0 && gridSnapshot[index][startingIndex - 1] === '.') {
-//               return { indexI: index, indexJ: startingIndex - 1 };
-//           } else if (index > 0 && gridSnapshot[index - 1][startingIndex] === '.') {
-//               return { indexI: index - 1, indexJ: startingIndex };
-//           } else if (index < gridSnapshot.length - 1 && gridSnapshot[index + 1][startingIndex] === '.') {
-//               return { indexI: index + 1, indexJ: startingIndex };
-//           }
-//       } else if (orientation === 'COLUMN') {
-//           // For COLUMN orientation, check for valid placements around the start of the segment
-//           if (index > 0 && gridSnapshot[index - 1][startingIndex] === '.') {
-//               return { indexI: index - 1, indexJ: startingIndex };
-//           } else if (startingIndex > 0 && gridSnapshot[index][startingIndex - 1] === '.') {
-//               return { indexI: index, indexJ: startingIndex - 1 };
-//           } else if (startingIndex < gridSnapshot[index].length - 1 && gridSnapshot[index][startingIndex + 1] === '.') {
-//               return { indexI: index, indexJ: startingIndex + 1 };
-//           }
-//       }
-//       return null; // No valid clue index found
-//   };
-
-//   clueIndex = determineClueIndex();
-
-//   if (clueIndex) {
-//       return {
-//           clueAnswerStructure: bestSegment,
-//           clueAnswerLength: clueAnswerLength,
-//           intersections: totalIntersections,
-//           clueSize: clueSize,
-//           startingIndex: startingIndex,
-//           clueIndex: clueIndex // Now includes indexI and indexJ
-//       };
-//   } else {
-//       // No valid placement found
-//       return null;
-//   }
-// }
-
-
-const analyzeWordStructureAndSuggestClue1 = async (wordStructure, orientation, index, gridSnapshot) => {
-  const sizeRanges = {
-    XL: {min: 8, max: 9},
-    L: {min: 5, max: 7},
-    M: {min: 4, max: 4},
-    S: {min: 1, max: 3},
-  };
-
-  // Immediately return null if wordStructure is fully occupied without placeholders
-  if (!wordStructure.includes('.')) {
-    return null;
-  }
-
-  let bestSegment = '';
-  let totalIntersections = 0;
-  let startingIndex = -1;
-  let clueIndex = {indexI: -1, indexJ: -1};
-
-  // Adjustments for correctly identifying segments
-  const segments = wordStructure.split(/[*#]/).filter(Boolean);
-  segments.forEach((segment, segmentIndex) => {
-    const intersectionCount = (segment.match(/[A-Z]/gi) || []).length;
-    if (intersectionCount > 0 && segment.length > bestSegment.length) {
-      bestSegment = segment;
-      totalIntersections = intersectionCount;
-      // Find the actual starting index of this segment within the full word structure
-      startingIndex = wordStructure.indexOf(segment);
-    }
-  });
-
-  if (!bestSegment) {
-    return null; // No valid segment found
-  }
-
-  const clueAnswerLength = bestSegment.length;
-  const clueSize = Object.keys(sizeRanges).find(size =>
-    clueAnswerLength >= sizeRanges[size].min && clueAnswerLength <= sizeRanges[size].max) || 'S';
-
-  // Correctly determining clueIndex based on the grid's representation
-  const determineClueIndex = () => {
-    if (orientation === 'ROW') {
-      // Additional logic for ROW orientation
-    } else if (orientation === 'COLUMN') {
-      // Additional logic for COLUMN orientation
-    }
-    return null; // No valid clue index found
-  };
-
-  clueIndex = determineClueIndex();
-
-  if (clueIndex) {
-    return {
-      clueAnswerStructure: bestSegment,
-      clueAnswerLength: clueAnswerLength,
-      intersections: totalIntersections,
-      clueSize: clueSize,
-      startingIndex: startingIndex,
-      clueIndex: clueIndex // Includes indexI and indexJ
-    };
-  } else {
-    // No valid placement found
-    return null;
-  }
-};
-
-const analyzeWordStructureAndSuggestClue_ = (wordStructure, orientation, index, gridSnapshot) => {
-  const sizeRanges = {
-    XL: {min: 8, max: 9},
-    L: {min: 5, max: 7},
-    M: {min: 4, max: 4},
-    S: {min: 1, max: 3},
-  };
-
-  // Check for full occupancy without any placeholders; return null if detected
-  if (!wordStructure.includes('-') && wordStructure.match(/[A-Z]/gi).length === wordStructure.length) {
-    return null; // No room for additional clues
-  }
-
-  let bestSegment = '';
-  let totalIntersections = 0;
-  let startingIndex = -1;
-  let clueIndex = {indexI: -1, indexJ: -1};
-
-  // Adjustments for correctly identifying segments
-  const segments = wordStructure.split(/[*#]/).filter(Boolean);
-  segments.forEach(segment => {
-    const intersectionCount = (segment.match(/[A-Z]/gi) || []).length;
-    if (intersectionCount > 0 && segment.length > bestSegment.length) {
-      bestSegment = segment;
-      totalIntersections = intersectionCount;
-      startingIndex = wordStructure.indexOf(segment); // Update starting index
-    }
-  });
-
-  if (!bestSegment) {
-    return null; // No valid segment found
-  }
-
-  const clueAnswerLength = bestSegment.length;
-  const clueSize = Object.keys(sizeRanges).find(size =>
-    clueAnswerLength >= sizeRanges[size].min && clueAnswerLength <= sizeRanges[size].max) || 'S';
-
-  // Determine clue placement based on orientation and constraints
-  const determineClueIndex = () => {
-    if (orientation === 'ROW') {
-      // Check left, above, and below the starting index for a suitable clue index placement
-      if (startingIndex > 0 && gridSnapshot[index][startingIndex - 1] === null) {
-        return {indexI: index, indexJ: startingIndex - 1};
-      } else if (index > 0 && gridSnapshot[index - 1][startingIndex] === null) {
-        return {indexI: index - 1, indexJ: startingIndex};
-      } else if (index < gridSnapshot.length - 1 && gridSnapshot[index + 1][startingIndex] === null) {
-        return {indexI: index + 1, indexJ: startingIndex};
-      }
-    } else if (orientation === 'COLUMN') {
-      // Check above, left, and right of the starting index for a suitable clue index placement
-      if (index > 0 && gridSnapshot[index - 1][startingIndex] === null) {
-        return {indexI: index - 1, indexJ: startingIndex};
-      } else if (startingIndex > 0 && gridSnapshot[index][startingIndex - 1] === null) {
-        return {indexI: index, indexJ: startingIndex - 1};
-      } else if (startingIndex < gridSnapshot[index].length - 1 && gridSnapshot[index][startingIndex + 1] === null) {
-        return {indexI: index, indexJ: startingIndex + 1};
-      }
-    }
-    return null; // No valid clue index found
-  };
-
-  clueIndex = determineClueIndex();
-
-  if (clueIndex) {
-    return {
-      clueAnswerStructure: bestSegment,
-      clueAnswerLength: clueAnswerLength,
-      intersections: totalIntersections,
-      clueSize: clueSize,
-      startingIndex: startingIndex,
-      clueIndex: clueIndex, // Includes indexI and indexJ
-      orientation: orientation // Adding orientation as requested
-    };
-  } else {
-    // No valid placement found
-    return null;
-  }
-};
-
-
-const analyzeWordStructureAndSuggestClue__ = (wordStructure, orientation, index, gridSnapshot) => {
-  const sizeRanges = {
-    XL: {min: 8, max: 9},
-    L: {min: 5, max: 7},
-    M: {min: 4, max: 4},
-    S: {min: 1, max: 3},
-  };
-
-  // Check for full occupancy without any placeholders; return null if detected
-  if (!wordStructure.includes('-') && wordStructure.match(/[A-Z]/gi).length === wordStructure.length) {
-    return null; // No room for additional clues
-  }
-
-  let segments = wordStructure.split(/[*#]/).map((segment, i) => {
-    // Calculate segment's start index considering previous markers and segments
-    let start = wordStructure.slice(0, wordStructure.indexOf(segment)).replace(/[A-Z]/g, '-').length;
-    return {segment, start, intersections: (segment.match(/[A-Z]/gi) || []).length};
-  }).filter(s => s.intersections <= 2); // Filter out segments with more than 2 intersections
-
-  if (segments.length === 0) {
-    return null;
-  }
-
-  // Sort segments by potential size (longest first) and by fewer intersections
-  segments.sort((a, b) => b.segment.length - a.segment.length || a.intersections - b.intersections);
-
-  // Choose the best segment
-  let best = segments[0];
-
-  // Determine clue size
-  let clueSize = Object.keys(sizeRanges).find(size =>
-    best.segment.length >= sizeRanges[size].min && best.segment.length <= sizeRanges[size].max) || 'S';
-
-  // Determine startingIndex and clueIndex based on orientation
-  let startingIndex = orientation === 'ROW' ? {indexI: index, indexJ: best.start} : {indexI: best.start, indexJ: index};
-  let clueIndex = {indexI: startingIndex.indexI, indexJ: startingIndex.indexJ};
-
-  // Adjust clueIndex for ROW orientation, considering left side for the marker
-  if (orientation === 'ROW' && startingIndex.indexJ > 0) {
-    clueIndex.indexJ -= 1;
-  } else if (orientation === 'COLUMN' && startingIndex.indexI > 0) {
-    // Adjust for COLUMN orientation, considering above for the marker
-    clueIndex.indexI -= 1;
-  }
-
-  // Adjust clue size based on marker placement and actual segment length
-  let actualLength = best.segment.length;
-  if (orientation === 'ROW' && wordStructure[startingIndex.indexJ] === '-') actualLength--;
-  else if (orientation === 'COLUMN' && wordStructure[startingIndex.indexI] === '-') actualLength--;
-
-  clueSize = Object.keys(sizeRanges).find(size =>
-    actualLength >= sizeRanges[size].min && actualLength <= sizeRanges[size].max) || 'S';
-
-  return {
-    clueAnswerStructure: best.segment,
-    clueAnswerLength: actualLength,
-    intersections: best.intersections,
-    clueSize: clueSize,
-    startingIndex,
-    clueIndex,
-    orientation
-  };
-};
-
 const analyzeWordStructureAndSuggestClue = (wordStructure, orientation, index, gridSnapshot) => {
   const sizeRanges = {
-    XL: {min: 8, max: 9},
+    XL: {min: 8, max: gridSnapshot.length},
     L: {min: 5, max: 7},
     M: {min: 4, max: 4},
     S: {min: 1, max: 3},
@@ -2215,7 +1463,6 @@ const analyzeWordStructureAndSuggestClue = (wordStructure, orientation, index, g
   };
 };
 
-
 const letsAddMoreFillers = async (gridSnapshot, orientation, clueSize) => {
   console.log(colors.bgMagenta(`letsAddMoreFillers ${clueSize} ${orientation}`));
   // const orientation = randomlyPickBetweenRowAndColumn();
@@ -2231,9 +1478,9 @@ const letsAddMoreFillers = async (gridSnapshot, orientation, clueSize) => {
   switch (orientation) {
     case 'ROW':
 
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < gridSnapshot.length; i++) {
         wordStructure = '';
-        for (let j = 0; j < 9; j++) {
+        for (let j = 0; j < gridSnapshot.length; j++) {
           if (gridSnapshot[i][j] === null) {
             wordStructure += '-';
           } else {
@@ -2251,9 +1498,9 @@ const letsAddMoreFillers = async (gridSnapshot, orientation, clueSize) => {
       }
       break;
     case 'COLUMN':
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < gridSnapshot.length; i++) {
         wordStructure = '';
-        for (let j = 0; j < 9; j++) {
+        for (let j = 0; j < gridSnapshot.length; j++) {
           if (gridSnapshot[j][i] === null) {
             wordStructure += '-';
           } else {
@@ -2277,47 +1524,6 @@ const letsAddMoreFillers = async (gridSnapshot, orientation, clueSize) => {
   return arr;
 }
 
-
-const scanAndFillLastBorders = async () => {
-  // this function tries to fill last row and column with XL sized word if possible. if these lines already contain a clue marker, it will not fil that line.
-
-  // let lastRowStr = '';
-  // let lastColumnStr = '';
-  // for(let j = 0; j < 9 ; j++){
-  //   //get full row wordStructure and make break it into possible clue options:
-  //   if(gridSnapshot[8][j] === null){
-  //     lastRowStr += '-';
-  //   }else{
-  //     lastRowStr += gridSnapshot[8][j];
-  //   }
-  // }
-  // if(!(lastRowStr.includes('#') || lastRowStr.includes('*'))){
-  //   let temp = await findSuitableCluePlacement(lastRowStr, 'ROW', 8, CLUE_LENGTH_XL, true);
-  //   console.log(colors.bgGreen(temp))
-  // }
-
-
-  //   for(let j = 0; j < 9 ; j++){
-  //     //get full row wordStructure and make break it into possible clue options:
-  //     if(gridSnapshot[j][8] === null){
-  //       lastColumnStr += '-';
-  //     }else{
-  //       lastColumnStr += gridSnapshot[j][8];
-  //     }
-  //   }
-
-  // console.log('lastRowStr',lastRowStr);
-  // console.log('lastColumnStr', lastColumnStr);
-  // if(!(lastColumnStr.includes('#') || lastColumnStr.includes('*'))){
-  //   temp = await findSuitableCluePlacement(lastColumnStr, 'COLUMN', 8, CLUE_LENGTH_XL, true);
-  //   console.log(colors.bgGreen(temp))
-  // }
-
-  // Assuming letsAddMoreFillers is a function that returns a list of clues to be filled
-
-
-}
-
 // Finalization steps after processing all clues
 const finalizePuzzle = async (puzzleState) => {
   const date = new Date();
@@ -2332,13 +1538,11 @@ const finalizePuzzle = async (puzzleState) => {
   puzzleObj.title = 'Puzzle for ' + puzzleState.date;
   puzzleObj.date = puzzleState.date;
   puzzleObj.template = puzzleState.template;
-  puzzleObj.gridSize = 9;
+  puzzleObj.gridSize = puzzleState.gridSize;
 
-  puzzleObj.clues = generateCrosswordFromDiary(puzzleState.clueDiary);
-  // puzzleObj.cells = generateCellsArrayFromDiary(puzzleState.clueDiary);
-  let cells = generateCellsArrayFromDiary(puzzleState.clueDiary);
-  // let arr = updateCellsWithCounter(cells, 8);
-  let data = await updateCellsWithLousing(cells);
+  puzzleObj.clues = generateCrosswordFromDiary(puzzleState.clueDiary, puzzleState.gridSize);
+  let cells = generateCellsArrayFromDiary(puzzleState.clueDiary, puzzleState.gridSize);
+  let data = await updateCellsWithLousing(cells, puzzleState.gridSize);
   console.log('inside finalizePuzzle')
   // console.log(colors.bgRed('cells', cells, 'data:', data))
   puzzleObj.losuingWord = data.lousingWord
@@ -2645,9 +1849,9 @@ const processClueFilling = async (puzzleState) => {
                   puzzleObj.crosswordId = uuidv4();
                   puzzleObj.title = 'Puzzle ' + formattedDate;
                   puzzleObj.date = formattedDate;
-                  puzzleObj.gridSize = 9;
-                  puzzleObj.clues = generateCrosswordFromDiary(puzzleState.clueDiary);
-                  puzzleObj.cells = generateCellsArrayFromDiary(puzzleState.clueDiary);
+                  puzzleObj.gridSize = puzzleState.gridSize;
+                  puzzleObj.clues = generateCrosswordFromDiary(puzzleState.clueDiary, puzzleState.gridSize);
+                  puzzleObj.cells = generateCellsArrayFromDiary(puzzleState.clueDiary, puzzleState.gridSize);
                   puzzleObj.nullCells = generateNullCellObjects(puzzleState.gridSnapshot)
                   console.log('generateNullCellObjects', JSON.stringify(generateNullCellObjects(puzzleState.gridSnapshot)))
                   console.log('calling savePuzzleToFile...')
@@ -2681,60 +1885,6 @@ const processClueFilling = async (puzzleState) => {
 
 }
 
-function generateCrosswordImage(jsonData) {
-  const gridSize = jsonData.gridSize;
-  const canvasSize = 450; // Change as needed
-  const cellSize = canvasSize / gridSize;
-  const canvas = createCanvas(canvasSize, canvasSize + 100); // Extra space for text
-  const ctx = canvas.getContext('2d');
-
-  // Fill background
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, canvasSize, canvasSize + 100);
-
-  // Setup text properties
-  ctx.fillStyle = 'black';
-  ctx.font = '16px Arial';
-
-  // Draw title and date above the grid
-  ctx.fillText(jsonData.title, 10, 30);
-  ctx.fillText(jsonData.date, 10, 50);
-
-  // Draw grid
-  jsonData.cells.forEach(cell => {
-    const {content, index, status, actualContent} = cell;
-    const x = index.x * cellSize;
-    const y = (index.y * cellSize) + 60; // Offset for title and date
-
-    // Draw cell background
-    if (status === 'BLOCKED') {
-      ctx.fillStyle = '#D3D3D3'; // Light Gray for blocked cells
-    } else {
-      ctx.fillStyle = 'white';
-    }
-    ctx.fillRect(x, y, cellSize, cellSize);
-
-    // Draw border
-    ctx.strokeStyle = 'black';
-    ctx.strokeRect(x, y, cellSize, cellSize);
-
-    // Fill cell with content
-    if (status !== 'BLOCKED') {
-      ctx.fillStyle = 'black';
-      ctx.fillText(actualContent, x + (cellSize / 3), y + (2 * cellSize / 3), cellSize);
-    }
-  });
-
-  // Save to file
-  const outputFile = './crossword.png';
-  const out = fs.createWriteStream(outputFile);
-  const stream = canvas.createPNGStream();
-  stream.pipe(out);
-
-  out.on('finish', () => console.log(`Crossword puzzle image saved to ${outputFile}`));
-}
-
-
 function savePuzzleToFile(puzzleObj, counter, formattedDate) {
   const dirPath = path.join(__dirname, 'mockedPuzzles'); // Directory path for saving files
   // Ensure the "mockedPuzzles" directory exists, create it if not
@@ -2753,175 +1903,6 @@ function savePuzzleToFile(puzzleObj, counter, formattedDate) {
     }
   });
 }
-
-// Example usage
-const puzzleObj = {/* your puzzle object here */};
-let counter = 1; // Increment this based on your logic
-const formattedDate = new Date().toISOString().slice(0, 10).replace(/-/g, '-');
-
-// Update the counter based on the files already present in the directory to avoid overwriting
-const dirPath = path.join(__dirname, 'mockedPuzzles');
-if (fs.existsSync(dirPath)) {
-  const files = fs.readdirSync(dirPath);
-  const puzzleFiles = files.filter(file => file.startsWith('puzzle-') && file.endsWith('.json'));
-  counter = puzzleFiles.length + 1; // Set counter to next available number
-}
-
-function checkWordStructureStringForMultipleNonDashCharacters(wordStructure) {
-  let nonDashCount = 0;
-  for (let i = 0; i < wordStructure.length; i++) {
-    if (wordStructure[i] !== '-') {
-      nonDashCount += 1;
-      if (nonDashCount > 1) {
-        return false; // More than one non-dash character found
-      }
-    }
-  }
-  return true; // Suitable word structure (0 or 1 non-dash character)
-}
-
-//
-async function findAllPossibleCluePaths(orientation) {
-  const clueSizeRanges = {
-    XL: {min: 7, max: 9}, // Adjust these ranges as necessary
-    L: {min: 5, max: 6},
-    M: {min: 3, max: 4},
-    S: {min: 1, max: 2}
-  };
-
-  // Initialize result structure
-  const result = {
-    XL: [],
-    L: [],
-    M: [],
-    S: []
-  };
-
-  // Iterate through the grid to find suitable paths
-  gridSnapshot.forEach((row, i) => {
-    row.forEach((cell, j) => {
-      // Only consider empty cells as starting points
-      if (cell === null) {
-        Object.entries(clueSizeRanges).forEach(([size, {min, max}]) => {
-          for (let length = min; length <= max; length++) {
-            let isSuitable = true;
-            let wordStructure = '';
-            for (let offset = 0; offset < length; offset++) {
-              const checkI = orientation === 'ROW' ? i : i + offset;
-              const checkJ = orientation === 'COLUMN' ? j : j + offset;
-
-              // Ensure within bounds and path is clear
-              if (checkI >= gridSnapshot.length || checkJ >= gridSnapshot[0].length || gridSnapshot[checkI][checkJ] !== null) {
-                isSuitable = false;
-                break;
-              }
-
-              // Simulate word structure based on intersections
-              wordStructure += gridSnapshot[checkI][checkJ] === null ? '-' : gridSnapshot[checkI][checkJ];
-            }
-
-            if (isSuitable) {
-              result[size].push({
-                wordStructure: wordStructure,
-                clueIndex: {clueIndexI: i, clueIndexJ: j},
-                answerStartingIndex: {
-                  answerStartingIndexI: orientation === 'ROW' ? i : i,
-                  answerStartingIndexJ: orientation === 'COLUMN' ? j : j
-                },
-                directionFlow: orientation === 'ROW' ? 'RIGHT' : 'DOWN',
-                clueLength: length
-              });
-            }
-          }
-        });
-      }
-    });
-  });
-
-  return result;
-}
-
-// 
-
-const fetchLargeWordOptionsAgainstXLWord_abc = async (clueDiaryObj) => {
-  let usedColumnsArr = [];
-  let usedRowsArr = [];
-  let largeWordsConnectedToCurrentXLWord = [];
-
-  console.log("Finding Large word options against", clueDiaryObj.clueObject.answer);
-
-  let largeWordsBranchedFromThisAnchorword;
-  if (clueDiary.xl.length === 1) {
-    // Allocate 50% of large sized words quota to this anchor word
-    largeWordsBranchedFromThisAnchorword = Math.ceil(NUMBER_OF_L_CLUES_FOR_ACTIVE_PUZZLE / 2);
-  } else {
-    // Allocate 30% of large sized words quota to this anchor word
-    largeWordsBranchedFromThisAnchorword = Math.ceil(NUMBER_OF_L_CLUES_FOR_ACTIVE_PUZZLE * 0.3);
-  }
-
-  let totalWordsAccomodated = 0;
-
-  while (totalWordsAccomodated < largeWordsBranchedFromThisAnchorword) {
-    console.log('fetchLargeWordOptionsAgainstXLWord : while...')
-    let currentClueLength = getRandomizedClueLengthAgainstType("L");
-    let flag = false;
-
-    do {
-      let startIndexI, startIndexJ;
-      let orientation = clueDiaryObj.orientation === "ROW" ? "COLUMN" : "ROW"; // Switch orientation for branching
-      let directionFlow = orientation === "ROW" ? "RIGHT" : "DOWN";
-
-      if (orientation === "ROW") {
-        startIndexI = randomIntBetweenRange(0, gridSnapshot.length - 1);
-        startIndexJ = randomIntBetweenRange(0, gridSnapshot[0].length - currentClueLength);
-      } else {
-        startIndexI = randomIntBetweenRange(0, gridSnapshot.length - currentClueLength);
-        startIndexJ = randomIntBetweenRange(0, gridSnapshot[0].length - 1);
-      }
-
-      // Check if the path is clear and does not intersect with existing words beyond the initial character
-      let isPathClear = true;
-      for (let offset = 0; offset < currentClueLength; offset++) {
-        let checkI = orientation === "ROW" ? startIndexI : startIndexI + offset;
-        let checkJ = orientation === "ROW" ? startIndexJ + offset : startIndexJ;
-        if (gridSnapshot[checkI][checkJ] !== null && !(usedRowsArr.includes(checkI) || usedColumnsArr.includes(checkJ))) {
-          isPathClear = false;
-          break;
-        }
-      }
-
-      if (isPathClear) {
-        // Generate word structure based on the chosen orientation and starting indexes
-        let wordStructure = new Array(currentClueLength).fill('-').join('');
-        let wordStructureObj = await analyzeString(wordStructure);
-        const clue = await getClueWithSpecificAnswerPattern(wordStructureObj);
-
-        if (clue) {
-          largeWordsConnectedToCurrentXLWord.push({
-            clueObject: clue,
-            orientation: orientation,
-            answerStartingIndex: {indexI: startIndexI, indexJ: startIndexJ},
-            clueIndex: orientation === "ROW" ? {
-              clueIndexI: startIndexI,
-              clueIndexJ: startIndexJ - 1
-            } : {clueIndexI: startIndexI - 1, clueIndexJ: startIndexJ},
-            directionFlow: directionFlow
-          });
-          totalWordsAccomodated++;
-          flag = true;
-        }
-      }
-    } while (!flag && totalWordsAccomodated < largeWordsBranchedFromThisAnchorword);
-
-    if (!flag) {
-      console.log(`Unable to find suitable placement for large words branching from ${clueDiaryObj.clueObject.answer}`);
-      break; // Break the loop if unable to find suitable placement
-    }
-  }
-
-  return largeWordsConnectedToCurrentXLWord;
-};
-
 
 const findSuitableCluePlacement = (gridSnapshot, wordStructure, scanOrientation, pathIndex, desiredClueSize, intersectionPreferred) => {
   console.log('desiredClueSize', desiredClueSize)
@@ -2965,33 +1946,6 @@ const findSuitableCluePlacement = (gridSnapshot, wordStructure, scanOrientation,
     options: potentialPlacements,
     selectedOption: selectedOption ? selectedOption : potentialPlacements.length > 0 ? potentialPlacements[0] : null // Select the first option as fallback
   };
-};
-
-
-let largeSizedWordsPlacementObject = {
-  anchorBranchingLargeClues: {
-    ROW: [],
-    COLUMN: [],
-  },
-  nonBranchedLargeClues: {
-    ROW: [],
-    COLUMN: [],
-  },
-};
-
-
-const isPathSuitableForGivenClueSizeAndStrcture = (wordStructure, scanOrientation, pathIndex, desiredClueSize) => {
-
-  let lowerLimit = desiredClueSize.split('-')[0];
-  let upperrLimit = desiredClueSize.split('-')[1];
-  switch (scanOrientation) {
-    case 'ROW':
-      console.log(wordStructure);
-
-      break;
-    case 'COLUMN':
-      break;
-  }
 };
 
 const scanLineForPossibleClue = (orientation, desiredClueSize) => {
@@ -3209,12 +2163,12 @@ const determineCluePlacement = async (puzzleState, SIZE, clueObj, orderInSize) =
           "Inside DoWhile Loop in the function determineCluePlacement, currentOrientation is : ",
           currentOrientation
         );
-        if (clueObj.answer.length === 8) {
+        if (clueObj.answer.length === puzzleState.gridSize - 1) {
           let clueIndexI = 0; //  shows the row
           let clueIndexJ = 0;
 
           if (currentOrientation === "COLUMN") {
-            clueIndexJ = randomIntBetweenRange(0, 8); // shows the column
+            clueIndexJ = randomIntBetweenRange(0, puzzleState.gridSize - 1); // shows the column
             console.log(
               "COLUMN",
               clueIndexI,
@@ -3286,7 +2240,7 @@ const determineCluePlacement = async (puzzleState, SIZE, clueObj, orderInSize) =
             }
           } else {
             // HANDLING XL WORD IN ROW WITH SIZE 8
-            clueIndexI = randomIntBetweenRange(0, 8);
+            clueIndexI = randomIntBetweenRange(0, puzzleState.gridSize - 1);
             console.log(
               "************ROW*******************",
               "clue Index : ",
@@ -3362,7 +2316,7 @@ const determineCluePlacement = async (puzzleState, SIZE, clueObj, orderInSize) =
           // randomIntBetweenRange(0,9);
 
           if (currentOrientation === "COLUMN") {
-            clueIndexJ = randomIntBetweenRange(0, 8);
+            clueIndexJ = randomIntBetweenRange(0, puzzleState.gridSize - 1);
             //check edge cases
             // left edge case
             if (clueIndexJ === 0) {
@@ -3397,9 +2351,9 @@ const determineCluePlacement = async (puzzleState, SIZE, clueObj, orderInSize) =
                 continue;
               }
             } // right edge case:
-            else if (clueIndexJ === 8) {
-              if (gridSnapshot[0][7] === null) {
-                let redFlag = clueCellInPathScan(currentOrientation, clueObj.answer.length, 0, 7, "RIGHT_DOWN");
+            else if (clueIndexJ === puzzleState.gridSize - 1) {
+              if (gridSnapshot[0][puzzleState.gridSize - 2] === null) {
+                let redFlag = clueCellInPathScan(currentOrientation, clueObj.answer.length, 0, puzzleState.gridSize - 2, "RIGHT_DOWN");
                 if (redFlag) {
                   console.log(colors.red("*******ENCOUNTED CLUE IN PATH, trying another coordinates***********", getLineNumber()));
                   continue;
@@ -3539,7 +2493,7 @@ const determineCluePlacement = async (puzzleState, SIZE, clueObj, orderInSize) =
             // console.log('COLUMN', clueIndexI, clueIndexJ)
             // gridSnapshot[clueIndexI][clueIndexJ] = clueObj.clue;
           } else {
-            let clueIndexI = randomIntBetweenRange(0, 8);
+            let clueIndexI = randomIntBetweenRange(0, puzzleState.gridSize - 1);
             // Top Row Case
             if (clueIndexI === 0) {
               console.log("Top Row Case");
@@ -3591,8 +2545,8 @@ const determineCluePlacement = async (puzzleState, SIZE, clueObj, orderInSize) =
               }
             }
             // Bottom Row Case
-            else if (clueIndexI === 8) {
-              if (gridSnapshot[7][0] === null) {
+            else if (clueIndexI === puzzleState.gridSize - 1) {
+              if (gridSnapshot[puzzleState.gridSize - 2][0] === null) {
                 let redFlag = clueCellInPathScan(
                   currentOrientation,
                   clueObj.answer.length,
@@ -3743,122 +2697,6 @@ const determineCluePlacement = async (puzzleState, SIZE, clueObj, orderInSize) =
   }
 };
 
-const getClueIndexAgainstAnswerStartingIndex_working_backup = (orientation, answerStartingIndexI, answerStartingIndexJ) => {
-  let obj = {
-    clueIndex: {
-      clueIndexI: null,
-      clueIndexJ: null,
-    },
-    directionFlow: "",
-  };
-
-  // Common function to check if adjacent cell is suitable for clue index
-  const isCellSuitable = (i, j) => {
-    return gridSnapshot[i] && gridSnapshot[i][j] === null;
-  };
-
-  switch (orientation) {
-    case "ROW":
-      // For ROW, check for right and diagonal directions but ensure it does not overlap or go out of bounds
-      if (answerStartingIndexJ > 0 && isCellSuitable(answerStartingIndexI, answerStartingIndexJ - 1)) {
-        obj.clueIndex = {clueIndexI: answerStartingIndexI, clueIndexJ: answerStartingIndexJ - 1};
-        obj.directionFlow = "RIGHT";
-      } else if (answerStartingIndexI > 0 && isCellSuitable(answerStartingIndexI - 1, answerStartingIndexJ)) {
-        obj.clueIndex = {clueIndexI: answerStartingIndexI - 1, clueIndexJ: answerStartingIndexJ};
-        obj.directionFlow = "DOWN_RIGHT";
-      } else if (answerStartingIndexI < gridSnapshot.length - 1 && isCellSuitable(answerStartingIndexI + 1, answerStartingIndexJ)) {
-        obj.clueIndex = {clueIndexI: answerStartingIndexI + 1, clueIndexJ: answerStartingIndexJ};
-        obj.directionFlow = "UP_RIGHT";
-      }
-      break;
-    case "COLUMN":
-      // For COLUMN, adjust logic to account for top row special case
-      if (answerStartingIndexI === 0) {
-        // If at the top, only consider RIGHT_DOWN or LEFT_DOWN if possible
-        if (answerStartingIndexJ > 0 && isCellSuitable(answerStartingIndexI, answerStartingIndexJ - 1)) {
-          obj.clueIndex = {clueIndexI: answerStartingIndexI, clueIndexJ: answerStartingIndexJ - 1};
-          obj.directionFlow = "RIGHT_DOWN";
-        } else if (answerStartingIndexJ < gridSnapshot[0].length - 1 && isCellSuitable(answerStartingIndexI, answerStartingIndexJ + 1)) {
-          obj.clueIndex = {clueIndexI: answerStartingIndexI, clueIndexJ: answerStartingIndexJ + 1};
-          obj.directionFlow = "LEFT_DOWN";
-        }
-      } else {
-        // For other rows, consider DOWN, RIGHT_DOWN, and LEFT_DOWN if not at the top
-        if (answerStartingIndexI < gridSnapshot.length - 1 && isCellSuitable(answerStartingIndexI + 1, answerStartingIndexJ)) {
-          obj.clueIndex = {clueIndexI: answerStartingIndexI - 1, clueIndexJ: answerStartingIndexJ};
-          obj.directionFlow = "DOWN";
-        } else if (answerStartingIndexJ > 0 && isCellSuitable(answerStartingIndexI, answerStartingIndexJ - 1)) {
-          obj.clueIndex = {clueIndexI: answerStartingIndexI, clueIndexJ: answerStartingIndexJ - 1};
-          obj.directionFlow = "RIGHT_DOWN";
-        } else if (answerStartingIndexJ < gridSnapshot[0].length - 1 && isCellSuitable(answerStartingIndexI, answerStartingIndexJ + 1)) {
-          obj.clueIndex = {clueIndexI: answerStartingIndexI, clueIndexJ: answerStartingIndexJ + 1};
-          obj.directionFlow = "LEFT_DOWN";
-        }
-      }
-      break;
-  }
-
-  if (obj.clueIndex.clueIndexI === null || obj.clueIndex.clueIndexJ === null) {
-    console.log('No suitable starting index found for the clue.');
-    return false; // No suitable starting index was found
-  }
-
-  console.log(`Suggested clue index: ${JSON.stringify(obj)}`);
-  return obj;
-};
-
-function getClueIndexAgainstAnswerStartingIndex_backup_050324(orientation, answerStartingIndexI, answerStartingIndexJ) {
-  let obj = {
-    clueIndex: {
-      clueIndexI: null,
-      clueIndexJ: null,
-    },
-    directionFlow: "",
-  };
-
-  // Function to check if a cell is suitable for placing a clue index
-  const isCellSuitable = (i, j) => gridSnapshot[i] && gridSnapshot[i][j] === null;
-
-  if (orientation === "ROW") {
-    if (answerStartingIndexJ > 0 && isCellSuitable(answerStartingIndexI, answerStartingIndexJ - 1)) {
-      // Directly to the left of the starting index for RIGHT flow
-      obj.clueIndex = {clueIndexI: answerStartingIndexI, clueIndexJ: answerStartingIndexJ - 1};
-      obj.directionFlow = "RIGHT";
-    } else if (answerStartingIndexI > 0 && isCellSuitable(answerStartingIndexI - 1, answerStartingIndexJ)) {
-      // One cell above for DOWN_RIGHT flow
-      obj.clueIndex = {clueIndexI: answerStartingIndexI - 1, clueIndexJ: answerStartingIndexJ};
-      obj.directionFlow = "DOWN_RIGHT";
-    } else if (answerStartingIndexI < gridSnapshot.length - 1 && isCellSuitable(answerStartingIndexI + 1, answerStartingIndexJ)) {
-      // One cell below for UP_RIGHT flow
-      obj.clueIndex = {clueIndexI: answerStartingIndexI + 1, clueIndexJ: answerStartingIndexJ};
-      obj.directionFlow = "UP_RIGHT";
-    }
-  } else if (orientation === "COLUMN") {
-    if (isCellSuitable(answerStartingIndexI - 1, answerStartingIndexJ)) {
-      // Directly above the starting index for DOWN flow
-      obj.clueIndex = {clueIndexI: answerStartingIndexI - 1, clueIndexJ: answerStartingIndexJ};
-      obj.directionFlow = "DOWN";
-    } else if (answerStartingIndexJ > 0 && isCellSuitable(answerStartingIndexI, answerStartingIndexJ - 1)) {
-      // One cell to the left for RIGHT_DOWN flow
-      obj.clueIndex = {clueIndexI: answerStartingIndexI, clueIndexJ: answerStartingIndexJ - 1};
-      obj.directionFlow = "RIGHT_DOWN";
-    } else if (answerStartingIndexJ < gridSnapshot[0].length - 1 && isCellSuitable(answerStartingIndexI, answerStartingIndexJ + 1)) {
-      // One cell to the right for LEFT_DOWN flow
-      obj.clueIndex = {clueIndexI: answerStartingIndexI, clueIndexJ: answerStartingIndexJ + 1};
-      obj.directionFlow = "LEFT_DOWN";
-    }
-  }
-
-  // Validate the generated clue index and direction flow
-  if (obj.clueIndex.clueIndexI === null || obj.clueIndex.clueIndexJ === null) {
-    console.error('No suitable starting index found for the clue.');
-    return null; // Indicate failure to find a suitable clue index
-  }
-
-  // Return the generated clue index and direction flow
-  return obj;
-}
-
 function getClueIndexAgainstAnswerStartingIndex(gridSnapshot, orientation, answerStartingIndexI, answerStartingIndexJ) {
   let obj = {
     clueIndex: {
@@ -3925,237 +2763,6 @@ function getClueIndexAgainstAnswerStartingIndex(gridSnapshot, orientation, answe
   }
   return obj;
 }
-
-
-const getClueIndexAgainstAnswerStartingIndex_0702_0 = (orientation, answerStartingIndexI, answerStartingIndexJ, answerLength) => {
-  let obj = {
-    clueIndex: {
-      clueIndexI: null,
-      clueIndexJ: null,
-    },
-    directionFlow: "",
-  };
-
-  console.log(colors.yellow('getClueIndexAgainstAnswerStartingIndex  orientation,answerStartingIndexI,answerStartingIndexJ', orientation, answerStartingIndexI, answerStartingIndexJ));
-
-  switch (orientation) {
-    case "ROW":
-      // RIGHT - UP_RIGHT - DOWN_RIGHT
-      if (answerStartingIndexJ > 0 && gridSnapshot[answerStartingIndexI][answerStartingIndexJ - 1] === null) {
-        obj.clueIndex.clueIndexI = answerStartingIndexI;
-        obj.clueIndex.clueIndexJ = answerStartingIndexJ - 1;
-        obj.directionFlow = "RIGHT";
-      }
-      if (answerStartingIndexI > 0 && gridSnapshot[answerStartingIndexI - 1][answerStartingIndexJ] === null) {
-        obj.clueIndex.clueIndexI = answerStartingIndexI - 1;
-        obj.clueIndex.clueIndexJ = answerStartingIndexJ;
-        obj.directionFlow = "DOWN_RIGHT";
-      }
-      if (answerStartingIndexI < gridSnapshot.length - 1 && gridSnapshot[answerStartingIndexI + 1][answerStartingIndexJ] === null) {
-        obj.clueIndex.clueIndexI = answerStartingIndexI + 1;
-        obj.clueIndex.clueIndexJ = answerStartingIndexJ;
-        obj.directionFlow = "UP_RIGHT";
-      }
-      break;
-    case "COLUMN":
-      // DOWN - LEFT_DOWN - RIGHT_DOWN
-      if (answerStartingIndexI < (gridSnapshot.length - 1) && gridSnapshot[answerStartingIndexI + 1][answerStartingIndexJ] === null) {
-        obj.clueIndex.clueIndexI = answerStartingIndexI + 1;
-        obj.clueIndex.clueIndexJ = answerStartingIndexJ;
-        obj.directionFlow = "DOWN";
-      }
-      if (answerStartingIndexJ < (gridSnapshot[0].length - 1) && gridSnapshot[answerStartingIndexI][answerStartingIndexJ + 1] === null) {
-        obj.clueIndex.clueIndexI = answerStartingIndexI;
-        obj.clueIndex.clueIndexJ = answerStartingIndexJ + 1;
-        obj.directionFlow = "LEFT_DOWN";
-      }
-      if (answerStartingIndexJ > 0 && gridSnapshot[answerStartingIndexI][answerStartingIndexJ - 1] === null) {
-        obj.clueIndex.clueIndexI = answerStartingIndexI;
-        obj.clueIndex.clueIndexJ = answerStartingIndexJ - 1;
-        obj.directionFlow = "RIGHT_DOWN";
-      }
-      break;
-  }
-
-  if (obj.clueIndex.clueIndexI === null || obj.clueIndex.clueIndexJ === null) {
-    return false; // Return false if no valid clue index was found
-  }
-
-  return obj;
-};
-
-
-const getClueIndexAgainstAnswerStartingIndex_backup = (
-  orientation,
-  answerStartingIndexI,
-  answerStartingIndexJ
-) => {
-  let obj = {
-    clueIndex: {
-      clueIndexI: null,
-      clueIndexJ: null,
-    },
-    directionFlow: "",
-  };
-  console.log(colors.yellow('getClueIndexAgainstAnswerStartingIndex  orientation,answerStartingIndexI,answerStartingIndexJ', orientation,
-    answerStartingIndexI,
-    answerStartingIndexJ));
-  switch (orientation) {
-    case "ROW":
-      //RIGHT - UP_RIGHT - DOWN_RIGHT
-      if (gridSnapshot[answerStartingIndexI][answerStartingIndexJ - 1] && gridSnapshot[answerStartingIndexI][answerStartingIndexJ - 1] === null) {
-        obj.clueIndex.clueIndexI = answerStartingIndexI;
-        obj.clueIndex.clueIndexJ = answerStartingIndexJ - 1;
-        obj.directionFlow = "RIGHT";
-      } else if (
-        gridSnapshot[answerStartingIndexI - 1][answerStartingIndexJ] &&
-        gridSnapshot[answerStartingIndexI - 1][answerStartingIndexJ] === null
-      ) {
-        obj = {
-          clueIndex: {
-            clueIndexI: answerStartingIndexI - 1,
-            clueIndexJ: answerStartingIndexJ,
-          },
-          directionFlow: "DOWN_RIGHT",
-        };
-      } else if (
-        gridSnapshot[answerStartingIndexI + 1][answerStartingIndexJ] &&
-        gridSnapshot[answerStartingIndexI + 1][answerStartingIndexJ] === null
-      ) {
-        obj = {
-          clueIndex: {
-            clueIndexI: answerStartingIndexI + 1,
-            clueIndexJ: answerStartingIndexJ,
-          },
-          directionFlow: "UP_RIGHT",
-        };
-      } else {
-        // continue;
-      }
-      return obj;
-      break;
-    case "COLUMN":
-      // - DOWN - LEFT_DOWN - RIGHT_DOWN
-      console.log("inside getClueIndexAgainstAnswerStartingIndex", orientation, answerStartingIndexI, answerStartingIndexJ);
-      console.log(colors.yellow("answerStartingIndexI > 0", answerStartingIndexI > 0));
-      // console.log(colors.yellow("gridSnapshot[answerStartingIndexI-1][answerStartingIndexJ]",gridSnapshot[answerStartingIndexI - 1][answerStartingIndexJ]));
-      // console.log(colors.yellow("gridSnapshot[answerStartingIndexI-1][answerStartingIndexJ] === null",gridSnapshot[answerStartingIndexI - 1][answerStartingIndexJ] === null));
-      // console.log(colors.yellow(answerStartingIndexI > 0 && gridSnapshot[answerStartingIndexI - 1][answerStartingIndexJ] !== undefined && gridSnapshot[answerStartingIndexI - 1][answerStartingIndexJ] === null ));
-      if (answerStartingIndexI > 0 && gridSnapshot[answerStartingIndexI - 1][answerStartingIndexJ] !== undefined && gridSnapshot[answerStartingIndexI - 1][answerStartingIndexJ] === null) {
-        obj.clueIndex.clueIndexI = answerStartingIndexI - 1;
-        obj.clueIndex.clueIndexJ = answerStartingIndexJ;
-        obj.directionFlow = "DOWN";
-        console.log(colors.blue("INSIDE if ", obj));
-      } else if (
-        gridSnapshot[answerStartingIndexI][answerStartingIndexJ + 1] !==
-        undefined &&
-        gridSnapshot[answerStartingIndexI][answerStartingIndexJ + 1] === null
-      ) {
-        console.log(colors.blue("INSIDE ELSE 1", obj));
-        obj.clueIndex.clueIndexI = answerStartingIndexI;
-        obj.clueIndex.clueIndexJ = answerStartingIndexJ + 1;
-        obj.directionFlow = "LEFT_DOWN";
-        console.log(colors.blue("INSIDE ELSE 1", obj));
-      } else if (
-        gridSnapshot[answerStartingIndexI][answerStartingIndexJ - 1] !==
-        undefined &&
-        gridSnapshot[answerStartingIndexI][answerStartingIndexJ - 1] === null
-      ) {
-        obj.clueIndex.clueIndexI = answerStartingIndexI;
-        obj.clueIndex.clueIndexJ = answerStartingIndexJ - 1;
-        obj.directionFlow = "RIGHT_DOWN";
-        console.log(colors.blue("INSIDE ELSE 2", obj));
-      } else {
-        return false;
-      }
-
-      return obj;
-      break;
-  }
-};
-
-const getAnswerCoordinatesAgainstClue_backup = (
-  orientation,
-  clueIndexI,
-  clueIndexJ,
-  directionFlow,
-  clueObject
-) => {
-  let obj;
-  switch (orientation) {
-    case "ROW":
-      switch (directionFlow) {
-        case "RIGHT":
-          obj = new Object();
-          obj.answerStartingIndexI = clueIndexI;
-          obj.answerStartingIndexJ = clueIndexJ + 1;
-          obj.answerEndingIndexI = obj.answerStartingIndexI;
-          obj.answerEndingIndexJ = obj.answerStartingIndexJ + (clueObject.answer.length - 1);
-          break;
-
-        case "UP_RIGHT":
-          obj = new Object();
-          obj.answerStartingIndexI = clueIndexI - 1;
-          obj.answerStartingIndexJ = clueIndexJ;
-          obj.answerEndingIndexI = obj.answerStartingIndexI;
-          obj.answerEndingIndexJ =
-            obj.answerStartingIndexJ + (clueObject.answer.length - 1);
-          break;
-        case "DOWN_RIGHT":
-          obj = new Object();
-          obj.answerStartingIndexI = clueIndexI + 1;
-          obj.answerStartingIndexJ = clueIndexJ;
-          obj.answerEndingIndexI = obj.answerStartingIndexI;
-          obj.answerEndingIndexJ =
-            obj.answerStartingIndexJ + (clueObject.answer.length - 1);
-          break;
-        default:
-          break;
-      }
-      break;
-    case "COLUMN":
-      switch (directionFlow) {
-        case "DOWN":
-          obj = new Object();
-          obj.answerStartingIndexI = clueIndexI + 1;
-          obj.answerStartingIndexJ = clueIndexJ;
-          obj.answerEndingIndexI =
-            obj.answerStartingIndexI + (clueObject.answer.length - 1);
-          obj.answerEndingIndexJ = obj.answerStartingIndexJ;
-          break;
-        case "LEFT_DOWN":
-          obj = new Object();
-          obj.answerStartingIndexI = clueIndexI;
-          obj.answerStartingIndexJ = clueIndexJ - 1;
-          obj.answerEndingIndexI =
-            obj.answerStartingIndexI + (clueObject.answer.length - 1);
-          obj.answerEndingIndexJ = obj.answerStartingIndexJ;
-          break;
-        case "RIGHT_DOWN":
-          obj = new Object();
-          obj.answerStartingIndexI = clueIndexI;
-          obj.answerStartingIndexJ = clueIndexJ + 1;
-          obj.answerEndingIndexI =
-            obj.answerStartingIndexI + (clueObject.answer.length - 1);
-          obj.answerEndingIndexJ = obj.answerStartingIndexJ;
-          break;
-        default:
-          break;
-      }
-      break;
-    default:
-      break;
-  }
-  if (obj.answerEndingIndexI >= 9) {
-    obj.answerEndingIndexI = 8;
-  }
-
-  if (obj.answerEndingIndexJ >= 9) {
-    obj.answerEndingIndexJ = 8;
-  }
-  return obj;
-
-};
 
 const getAnswerCoordinatesAgainstClue = (
   gridSnapshot,
@@ -4243,11 +2850,11 @@ const getAnswerCoordinatesAgainstClue = (
   }
 
   // Ensure the answer does not exceed the grid boundaries
-  if (obj.answerEndingIndexI >= 9) {
-    obj.answerEndingIndexI = 8;
+  if (obj.answerEndingIndexI >= gridSnapshot.length) {
+    obj.answerEndingIndexI = gridSnapshot.length - 1;
   }
-  if (obj.answerEndingIndexJ >= 9) {
-    obj.answerEndingIndexJ = 8;
+  if (obj.answerEndingIndexJ >= gridSnapshot.length) {
+    obj.answerEndingIndexJ = gridSnapshot.length - 1;
   }
 
   // Check for clue markers at the starting index
@@ -4315,18 +2922,6 @@ const gridSnapshotFillerUtil = (gridSnapshot, clueDiary, orientation, clueObject
   addToDiary(clueDiary, orientation, {clueIndexI, clueIndexJ}, directionFlow, answerStartingCordinates, clueObject);
   // console.log(colors.bgBrightMagenta(JSON.stringify(clueDiary)));
 };
-
-const addToDiary_backup = (orientation, clueIndex, directionFlow, answerStartingCordinates, clueObject) => {
-  let size = getClueSize(clueObject.answer);
-  clueDiary[size].push({
-    clueNumber: clueDiary[`${getClueSize(clueObject.answer)}`].length + 1,
-    clueObject,
-    orientation,
-    startingIndex: {...answerStartingCordinates},
-    clueIndex,
-    directionFlow,
-  })
-}
 
 const addToDiary = (clueDiary, orientation, clueIndex, directionFlow, answerStartingCordinates, clueObject) => {
   let size = getClueSize(clueObject.answer);
@@ -4553,7 +3148,7 @@ const setupPointZero = async (puzzleState) => {
   // 
   switch (pointZeroDirectionFlow) {
     case 'DOWN_RIGHT':
-      switch (pickRandom(1, 2, 3, 4, 5)) {
+      switch (puzzleState.gridSize === 9 ? pickRandom(1, 2, 3, 4, 5) : pickRandom(1, 2, 3, 4, 5), pickRandom(1, 2, 3, 4, 5, 6, 7, 8)) {
         case 1:
           //pick a 9 size answer from 1,0 to 1,8
           startIndex = new Object();
@@ -4570,7 +3165,7 @@ const setupPointZero = async (puzzleState) => {
 
           //SIDE EFFECT: PLACE CLUE AT 2,8 with DOWN DIRECTION_FLOW (1 or 2 clues placement)
           startIndex.indexI = 2;
-          startIndex.indexJ = 8;
+          startIndex.indexJ = puzzleState.gridSize - 1;
           str = '------';
           wordStructureObj = await analyzeString(str);
           clue = await getClueWithSpecificAnswerPattern(wordStructureObj);
@@ -4597,7 +3192,7 @@ const setupPointZero = async (puzzleState) => {
 
           //SIDE EFFECT: PLACE CLUE AT 2,8 with DOWN DIRECTION_FLOW (1 or 2 clues placement)
           startIndex.indexI = 1;
-          startIndex.indexJ = 4;
+          startIndex.indexJ = puzzleState.gridSize - 5;
           str = '----';
           wordStructureObj = await analyzeString(str);
           clue = await getClueWithSpecificAnswerPattern(wordStructureObj);
@@ -4623,7 +3218,7 @@ const setupPointZero = async (puzzleState) => {
           }
           //SIDE EFFECT: PLACE CLUE AT 2,8 with DOWN DIRECTION_FLOW (1 or 2 clues placement)
           startIndex.indexI = 1;
-          startIndex.indexJ = 5;
+          startIndex.indexJ = puzzleState.gridSize - 4;
           str = '---';
           wordStructureObj = await analyzeString(str);
           clue = await getClueWithSpecificAnswerPattern(wordStructureObj);
@@ -4649,7 +3244,7 @@ const setupPointZero = async (puzzleState) => {
           }
           //SIDE EFFECT: PLACE CLUE AT 2,8 with DOWN DIRECTION_FLOW (1 or 2 clues placement)
           startIndex.indexI = 1;
-          startIndex.indexJ = 3;
+          startIndex.indexJ = puzzleState.gridSize - 6;
           str = '-----';
           wordStructureObj = await analyzeString(str);
           clue = await getClueWithSpecificAnswerPattern(wordStructureObj);
@@ -4674,7 +3269,7 @@ const setupPointZero = async (puzzleState) => {
           }
           //SIDE EFFECT: PLACE CLUE AT 2,8 with DOWN DIRECTION_FLOW (1 or 2 clues placement)
           startIndex.indexI = 1;
-          startIndex.indexJ = 7;
+          startIndex.indexJ = puzzleState.gridSize - 2;
           str = '-------';
           wordStructureObj = await analyzeString(str);
           clue = await getClueWithSpecificAnswerPattern(wordStructureObj);
@@ -4704,7 +3299,7 @@ const setupPointZero = async (puzzleState) => {
 
           //SIDE EFFECT: PLACE CLUE AT 2,8 with DOWN DIRECTION_FLOW (1 or 2 clues placement)
           startIndex.indexI = 2;
-          startIndex.indexJ = 8;
+          startIndex.indexJ = puzzleState.gridSize - 1;
           str = '------';
           wordStructureObj = await analyzeString(str);
           clue = await getClueWithSpecificAnswerPattern(wordStructureObj);
@@ -4713,7 +3308,7 @@ const setupPointZero = async (puzzleState) => {
           } else {
             console.log("No clue matched the generated pattern.");
           }
-          await fillBottomRight(puzzleState, {indexI: 8, indexJ: 2}, 'RIGHT', '------');
+          await fillBottomRight(puzzleState, {indexI: puzzleState.gridSize - 1, indexJ: 2}, 'RIGHT', '------');
           break;
         case 2:
           //MAKE A HALF/HALF SPLIT
@@ -4740,7 +3335,7 @@ const setupPointZero = async (puzzleState) => {
           } else {
             console.log("No clue matched the generated pattern.");
           }
-          await fillBottomRight(puzzleState, {indexI: 8, indexJ: 2}, 'RIGHT', '------');
+          await fillBottomRight(puzzleState, {indexI: puzzleState.gridSize - 1, indexJ: 2}, 'RIGHT', '------');
           break;
         case 3:
           // MAKE A 5,3 SPLIT
@@ -4767,7 +3362,7 @@ const setupPointZero = async (puzzleState) => {
           } else {
             console.log("No clue matched the generated pattern.");
           }
-          await fillBottomRight(puzzleState, {indexI: 8, indexJ: 2}, 'RIGHT', '------');
+          await fillBottomRight(puzzleState, {indexI: puzzleState.gridSize - 1, indexJ: 2}, 'RIGHT', '------');
           break;
         case 4:
           // MAKE A 3,5 SPLIT, add adjacent B2B clue either below or to the right.
@@ -4795,7 +3390,7 @@ const setupPointZero = async (puzzleState) => {
             console.log("No clue matched the generated pattern.");
           }
           //adding tail b2b to the right to make sure bottom border is now filled as well.
-          await fillBottomRight(puzzleState, {indexI: 8, indexJ: 2}, 'RIGHT', '------');
+          await fillBottomRight(puzzleState, {indexI: puzzleState.gridSize - 1, indexJ: 2}, 'RIGHT', '------');
           break;
 
         case 5:
@@ -4873,7 +3468,7 @@ const setupPointZero = async (puzzleState) => {
             console.log("No clue matched the generated pattern.");
           }
           //adding tail b2b to the right to make sure bottom border is now filled as well.
-          await fillBottomRight(puzzleState, {indexI: 8, indexJ: 1}, 'RIGHT', '-------');
+          await fillBottomRight(puzzleState, {indexI: puzzleState.gridSize - 1, indexJ: 1}, 'RIGHT', '-------');
           break;
 
       }
@@ -4889,17 +3484,6 @@ const fillBottomRight = async (puzzleState, startIndex, directionFlow, str) => {
   } else {
     console.log("No clue matched the generated pattern.");
   }
-}
-
-const populateRowZero = (puzzleState) => {
-  //scan row1 and get index of all clues placed on row1 (by row1 i mean second row)
-  // add clues on same columns on which clues are placed in row1
-  // set direction flows accordingly 
-  // add clues with DOWN directionFlow on all remaining cells of row0, all clues must have b2b support.
-}
-
-const populateColumnZero = (puzzleState) => {
-
 }
 
 const setCluesForActivePuzzleOfAnyType = async (puzzleState, type) => {
@@ -4921,10 +3505,10 @@ const setCluesForActivePuzzleOfAnyType = async (puzzleState, type) => {
         if (counter === 0) {
           let currentOrientation = 'ROW';
           // let currentClueLength = getRandomizedClueLengthAgainstType("XL");
-          let currentClueLength = 8;
+          let currentClueLength = puzzleState.gridSize - 1;
           // startingIndexI = randomIntBetweenRange(0,8);
           startingIndexI = randomIntBetweenRange(0, 0);
-          startingIndexJ = randomIntBetweenRange(0, (9 - currentClueLength));
+          startingIndexJ = randomIntBetweenRange(0, (puzzleState.gridSize - currentClueLength));
 
           for (let i = 0; i < currentClueLength; i++) {
             if (puzzleState.gridSnapshot[startingIndexI][startingIndexJ + i] === null) {
@@ -5009,17 +3593,17 @@ const setCluesForActivePuzzleOfAnyType = async (puzzleState, type) => {
             if (puzzleState.clueDiary.xl.length > 0) {
 
               if (previousXLWordIIndex === 0) {
-                currentClueLength = 8;
+                currentClueLength = puzzleState.gridSize - 1;
                 startingIndexI = 1;
               } else {
                 // currentClueLength = 9;
-                currentClueLength = 8;
+                currentClueLength = puzzleState.gridSize - 1;
                 startingIndexI = 0;
 
               }
             } else {
               // currentClueLength = 9;
-              currentClueLength = 8;
+              currentClueLength = puzzleState.gridSize - 1;
               // startingIndexI = 0;
               startingIndexI = 1;
               console.log('on to next counter')
@@ -5107,9 +3691,6 @@ const setCluesForActivePuzzleOfAnyType = async (puzzleState, type) => {
       // scanAndFillLastBorders();
       let payload = await processClueFilling(puzzleState);
       return payload;
-      // return {}
-      // scanGridForPossibleClues('ROW');
-      // console.log(colors.red( await findAllPossibleCluePaths('COLUMN')))
 
 
       break;
@@ -5182,23 +3763,6 @@ function isGridFullyFilled(gridSnapshot) {
   }
   return true;  // No empty cells found, return true
 }
-
-const insertClueInDB = async (clueObject) => {
-  try {
-    const answersArr = clueObject.answers
-      .split(";")
-      .map((answer) => answer.trim());
-    const clue = new Clue({
-      question: clueObject.question,
-      answers: answersArr,
-    });
-    await clue.save();
-    console.log(`Clue Saved: ${clue.question}`);
-  } catch (error) {
-    console.log("Error saving clue in the DB", error);
-  }
-};
-
 
 async function fillBordersWithClues(puzzleState) {
   const {gridSnapshot, clueDiary} = puzzleState;
@@ -5410,44 +3974,6 @@ function findBottomBorderSpaces(grid) {
   }));
 }
 
-// function findRightBorderSpaces(grid) {
-//   const spaces = [];
-//   const columnIndex = grid[0].length - 1;  // Right border index
-//   let currentSpace = { start: null, length: 0, wordStructure: '' };
-
-//   // Iterate over each row in the specified rightmost column
-//   for (let i = 0; i < grid.length; i++) {
-//       const cell = grid[i][columnIndex];
-
-//       // Check if the cell is empty or has a placeholder that indicates it's unfilled
-//       if (cell === null || cell === '.' || (cell !== '*' && cell !== '#')) {
-//           // Check if we are starting a new space
-//           if (currentSpace.start === null) {
-//               currentSpace.start = { i, j: columnIndex };
-//           }
-//           currentSpace.length++;
-//           currentSpace.wordStructure += (cell === null || cell === '.') ? '-' : cell;
-//       } else {
-//           // Finalize the current space if it has begun and reset
-//           if (currentSpace.length > 0) {
-//               spaces.push({ ...currentSpace });
-//               currentSpace = { start: null, length: 0, wordStructure: '' };  // Reset
-//           }
-//       }
-//   }
-
-//   // Add the last space if it ends at the border and it's suitable for a clue
-//   if (currentSpace.length > 0) {
-//       spaces.push(currentSpace);
-//   }
-
-//   return spaces.map(space => ({
-//       ...space,
-//       orientation: 'COLUMN',  // Since it's the right border, orientation is vertical
-//       directionFlow: 'DOWN'  // Clues will flow downwards
-//   }));
-// }
-
 function findRightBorderSpaces(grid) {
   const spaces = [];
   const columnIndex = grid[0].length - 1;  // Right border index
@@ -5494,61 +4020,6 @@ function findRightBorderSpaces(grid) {
     orientation: 'COLUMN',  // Since it's the right border, orientation is vertical
     directionFlow: 'DOWN'  // Clues will flow downwards
   }));
-}
-
-// Analyzes the word structure and attempts to place a clue if suitable
-async function analyzeAndPlaceClue(wordStructureObj, puzzleState, rowIndex, startCol) {
-  const {wordStructure, clueIndex, needsB2BClue} = wordStructureObj;
-  console.log('analyzeAndPlaceClue request against: ', clueIndex);
-  if (!wordStructure.includes('-')) return {placed: false}; // Ensure there's at least some space to fill
-
-  // Simulate fetching a clue that matches the word structure
-  let wordStructureAnalysis = await analyzeString(wordStructure);
-  const clue = await getClueWithSpecificAnswerPattern(wordStructureAnalysis);
-
-  if (clue) {
-    console.log(clue)
-    const clueLength = clue.answer.length;
-    const answerEndingIndexJ = startsAt + clueLength - 1;
-
-    // Check for space for back-to-back placement
-    // if (canPlaceBackToBackClue(puzzleState.gridSnapshot, rowIndex, answerEndingIndexJ)) {
-    //     // If there is space, place the clue and mark it as successful
-    //     gridSnapshotFillerUtil(puzzleState.gridSnapshot, puzzleState.clueDiary, 'ROW', clue, rowIndex, startsAt, 'RIGHT');
-    //     return {
-    //         placed: true,
-    //         answerEndingIndexI: rowIndex,
-    //         answerEndingIndexJ: answerEndingIndexJ,
-    //         directionFlow: 'RIGHT'
-    //     };
-    // }
-  }
-
-  return {placed: false};
-}
-
-// Checks if there is space for a back-to-back clue placement
-function canPlaceBackToBackClue(grid, rowIndex, colIndex) {
-  // Assuming the grid is square
-  return colIndex + 1 < grid[rowIndex].length && (grid[rowIndex][colIndex + 1] === null || grid[rowIndex][colIndex + 1] === '.');
-}
-
-const fillInnerGridColumnClue1 = (puzzleState) => {
-  const grid = puzzleState.gridSnapshot;
-  const startingRow = 1;
-  const startingColumn = 0;
-  let firstHoizontalPath = '';
-  for (let i = 1; i < grid.length; i++) {
-    if (grid[startingRow][i] === null) {
-      firstHoizontalPath += '-'
-    } else {
-      firstHoizontalPath += grid[startingRow][i];
-    }
-
-  }
-  console.log('firstHoizontalPath', firstHoizontalPath);
-  console.log(puzzleState.clueDiary.xl);
-
 }
 
 const clueSplitter = async (puzzleState, str, clueIndex, startIndex, orientation, directionFlow) => {
@@ -5672,9 +4143,6 @@ const fillInnerGridWithB2BClues = async (puzzleState) => {
 
 
 }
-
-// const grabBestClueIndex = (puzzleState,)
-
 
 const fillInnerRowsandColumnsInSequence = async (puzzleState) => {
   let currentWordStructure;
@@ -5900,50 +4368,6 @@ const fillInnerRowsandColumnsInSequence = async (puzzleState) => {
 
 };
 
-// function extractWordStructure(grid, row, startCol) {
-//     let wordStructure = '';
-//     let clueIndex = null;
-//     let needsB2BClue = true;
-
-//     // Find the first valid cell that can start a clue
-//     for (let j = startCol; j < grid[row].length; j++) {
-//         const cell = grid[row][j];
-//         if ((cell === null || cell === '.') && (j === 0 || grid[row][j-1] !== '#')) {
-//             clueIndex = j;
-//             break;
-//         }
-//     }
-
-//     // If a valid clueIndex is found, construct the word structure excluding the clue index cell
-//     if (clueIndex !== null) {
-//         for (let j = clueIndex + 1; j < grid[row].length; j++) {
-//             const cell = grid[row][j];
-//             if (cell === null || cell === '.') {
-//                 wordStructure += '-';
-//             } else if (cell !== '*' && cell !== '#') {
-//                 wordStructure += cell;
-//             } else {
-//                 needsB2BClue = false; // Encounter a clue marker, stop extending the word structure
-//                 break;
-//             }
-//         }
-
-//         // Adjust for word structures that are too short or if the clue index cell is at the end of the row
-//         if (wordStructure.length < 2 || clueIndex === grid[row].length - 1) {
-//             return null;
-//         }
-
-//         return {
-//             clueIndex: { row, col: clueIndex },
-//             wordStructure,
-//             needsB2BClue
-//         };
-//     }
-
-//     return null;
-// }
-
-
 function extractWordStructure(grid, index, orientation) {
   console.log('inside extractWordStructure')
   let wordStructure = '';
@@ -5992,10 +4416,6 @@ function extractWordStructure(grid, index, orientation) {
   };
 }
 
-
-// Assume analyzeAndPlaceClue and other helper functions are implemented similarly
-
-
 const readXLSXFile = (filePath) => {
   const workbook = xlsx.readFile(filePath);
 
@@ -6019,12 +4439,9 @@ module.exports = {
   getNumberOfCluesAgainstPercentage,
   getRandomizedClueLengthAgainstType,
   getClueWithSpecificAnswerPattern,
-  gridAnalysisForLargeWords,
   getClueWithSpecificAnswerPattern1,
   getClueAgainstAnswerLength,
   getAnswerStartingIndex,
-  addLargetypeWordsToGrid,
-  getLargeWordsWithAnchorBranching,
   generateAndPlaceALargeWord,
   fetchLargeWordOptionsAgainstXLWord,
   randomlyPickBetweenRowAndColumn,
@@ -6033,7 +4450,6 @@ module.exports = {
   scanPathForAnyCharacter,
   clueCellInPathScan,
   determineCluePlacement,
-  getClueIndexAgainstAnswerStartingIndex,
   getAnswerCoordinatesAgainstClue,
   gridSnapshopFillerUtil: gridSnapshotFillerUtil,
   setCluesForActivePuzzleOfAnyType,
@@ -6041,8 +4457,6 @@ module.exports = {
   readXLSXFile,
   scanGridForPossibleClues,
   setupPointZero,
-  pickRandom,
-  generateDashes,
   fillRecordOnGrid,
   generateWordStructureAgainstProvidedClueData,
   finalizePuzzle,
