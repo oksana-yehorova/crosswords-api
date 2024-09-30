@@ -1,44 +1,12 @@
 const colors = require("colors");
 const {
-
-    setupPointZero,
-    randomIntBetweenRange,
-    setNumberOfCluesForActivePuzzle,
-    printGrid,
-    calculateShare,
-    getNumberOfCluesAgainstPercentage,
-    getRandomizedClueLengthAgainstType,
-    getClueWithSpecificAnswerPattern,
-    gridAnalysisForLargeWords,
-    getClueWithSpecificAnswerPattern1,
-    getClueAgainstAnswerLength,
-    getAnswerStartingIndex,
-    addLargetypeWordsToGrid,
-    getLargeWordsWithAnchorBranching,
-    generateAndPlaceALargeWord,
-    fetchLargeWordOptionsAgainstXLWord,
-    randomlyPickBetweenRowAndColumn,
-    fetchSuitableClueFromDB,
-    analyzeString,
-    scanPathForAnyCharacter,
-    clueCellInPathScan,
-    determineCluePlacement,
-    getClueIndexAgainstAnswerStartingIndex,
-    getAnswerCoordinatesAgainstClue,
-    gridSnapshopFillerUtil,
-    setCluesForActivePuzzleOfAnyType,
-    scanLineForPossibleClue,
-    readXLSXFile,
-    scanGridForPossibleClues,
-    pickRandom, generateDashes,
     fillRecordOnGrid,
     ORIENTATION_ENUM,
-    generateWordStructureAgainstProvidedClueData,
     finalizePuzzle,
-} = require('../puzzleGenActionsForPuzzleJinnie');
+} = require('../../puzzleGenActionsForPuzzleJinnie');
 
 
-const generateTemplte10 = async (puzzleState) => {
+const generateTemplate = async (puzzleState) => {
     if (!await fillRecordOnGrid(puzzleState, 4, 4, 7, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;  //C47
     if (!await fillRecordOnGrid(puzzleState, 4, 5, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;  //C54
     if (!await fillRecordOnGrid(puzzleState, 8, 6, 0, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;  //C60
@@ -90,6 +58,6 @@ const generateTemplte10 = async (puzzleState) => {
 
 
 module.exports = {
-    generateTemplte10
+    generateTemplate
 
 }

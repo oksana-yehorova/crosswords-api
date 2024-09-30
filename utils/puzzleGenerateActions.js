@@ -721,7 +721,7 @@ function generateCellsArrayFromDiary1(clueDiary) {
 
 function generateCellsArrayFromDiary(clueDiary) {
   
-    const gridLimit = 9; // Assuming a 9x9 grid, adjust as necessary
+    const gridLimit = 9; // Assuming a 9 grid, adjust as necessary
     const cells = {};
   
     // Loop through each clue size category
