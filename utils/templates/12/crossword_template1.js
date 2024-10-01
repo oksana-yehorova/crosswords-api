@@ -6,12 +6,14 @@ const {
 } = require('../../puzzleGenActionsForPuzzleJinnie');
 
 const generateTemplate = async (puzzleState) => {
+
   if (!await fillRecordOnGrid(puzzleState, 5, 1, 6, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
   if (!await fillRecordOnGrid(puzzleState, 4,  0, 10, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
   if (!await fillRecordOnGrid(puzzleState, 3, 2, 8, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
   if (!await fillRecordOnGrid(puzzleState, 3,  4, 8, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
   if (!await fillRecordOnGrid(puzzleState, 6, 5, 6, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
   if (!await fillRecordOnGrid(puzzleState, 6, 6, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
+
 
   if (!await fillRecordOnGrid(puzzleState, 3,  5, 8, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
   if (!await fillRecordOnGrid(puzzleState, 3, 9, 8, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
@@ -38,6 +40,7 @@ const generateTemplate = async (puzzleState) => {
   if (!await fillRecordOnGrid(puzzleState, 3, 2, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
   if (!await fillRecordOnGrid(puzzleState, 3, 4, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
   if (!await fillRecordOnGrid(puzzleState, 5, 6, 4, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
+
 
   if (!await fillRecordOnGrid(puzzleState, 6, 8, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
   if (!await fillRecordOnGrid(puzzleState, 6, 10, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
