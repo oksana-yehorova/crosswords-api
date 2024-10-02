@@ -8,8 +8,15 @@ const {
 const generateTemplate = async (puzzleState) => {
   let tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
   let blockGenerated = false;
+  let attempts = 0;
+  const attemptsLimit = 100;
 
   while (!blockGenerated) {
+    attempts++;
+    if (attempts >= attemptsLimit) {
+      return false;
+    }
+
     tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
 
     if (!await fillRecordOnGrid(tmpPuzzleState, 4,0, 4, ORIENTATION_ENUM.COLUMN, 'LEFT_DOWN')) continue;
@@ -23,8 +30,14 @@ const generateTemplate = async (puzzleState) => {
   }
   puzzleState = JSON.parse(JSON.stringify(tmpPuzzleState))
   blockGenerated = false;
+  attempts = 0;
 
   while (!blockGenerated) {
+    attempts++;
+    if (attempts >= attemptsLimit) {
+      return false;
+    }
+
     tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
 
     if (!await fillRecordOnGrid(tmpPuzzleState, 5, 5, 0, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
@@ -40,6 +53,11 @@ const generateTemplate = async (puzzleState) => {
   blockGenerated = false;
 
   while (!blockGenerated) {
+    attempts++;
+    if (attempts >= attemptsLimit) {
+      return false;
+    }
+
     tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
 
     if (!await fillRecordOnGrid(tmpPuzzleState, 3, 2, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
@@ -56,9 +74,14 @@ const generateTemplate = async (puzzleState) => {
   }
   puzzleState = JSON.parse(JSON.stringify(tmpPuzzleState));
   blockGenerated = false;
-
+  attempts = 0;
 
   while (!blockGenerated) {
+    attempts++;
+    if (attempts >= attemptsLimit) {
+      return false;
+    }
+
     tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
 
     if (!await fillRecordOnGrid(puzzleState, 6, 6, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
