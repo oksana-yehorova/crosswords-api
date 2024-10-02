@@ -526,7 +526,7 @@ function generateCrosswordFromDiary(clueDiary, gridSize) {
   return crossword.clues;
 }
 
-async function updateCellsWithLousing(cells, gridSize) {
+async function updateCellsWithLousing(cells, size = 9) {
   console.log('inside updateCellsWithLousing');
   let attempts = 0;
   let lousingWord = undefined;
@@ -558,11 +558,11 @@ async function updateCellsWithLousing(cells, gridSize) {
       if (cell) {
         matchedCells.push(cell);
         cell.clueNumbers.forEach(clueNumber => cluesWithCircledCell.add(clueNumber));
-        if (matchedCells.length === gridSize - 1) break; // Stop if enough cells are matched
+        if (matchedCells.length === size - 1) break; // Stop if enough cells are matched
       }
     }
 
-    if (matchedCells.length === gridSize - 1) {
+    if (matchedCells.length === size - 1) {
       matchedCells.forEach((cell, index) => {
         cell.cellValue = index + 1;
         cell.isCircled = true;
@@ -1542,7 +1542,7 @@ const finalizePuzzle = async (puzzleState) => {
 
   puzzleObj.clues = generateCrosswordFromDiary(puzzleState.clueDiary, puzzleState.gridSize);
   let cells = generateCellsArrayFromDiary(puzzleState.clueDiary, puzzleState.gridSize);
-  let data = await updateCellsWithLousing(cells, puzzleState.gridSize);
+  let data = await updateCellsWithLousing(cells);
   console.log('inside finalizePuzzle')
   // console.log(colors.bgRed('cells', cells, 'data:', data))
   puzzleObj.losuingWord = data.lousingWord
