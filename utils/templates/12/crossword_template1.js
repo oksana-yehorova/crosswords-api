@@ -38,16 +38,17 @@ const generateTemplate = async (puzzleState) => {
   if (!await fillRecordOnGrid(puzzleState, 4, 7, 2, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
   if (!await fillRecordOnGrid(puzzleState, 5, 11, 2, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
   if (!await fillRecordOnGrid(puzzleState, 6, 5, 6, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
-  if (!await fillRecordOnGrid(puzzleState, 3,  5, 8, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
   if (!await fillRecordOnGrid(puzzleState, 5, 9, 2, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
-  if (!await fillRecordOnGrid(puzzleState, 6, 8, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
-  if (!await fillRecordOnGrid(puzzleState, 3,  11, 8, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
-  if (!await fillRecordOnGrid(puzzleState, 4,  7, 11, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
   if (!await fillRecordOnGrid(puzzleState, 4, 7, 7, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
+  if (!await fillRecordOnGrid(puzzleState, 6, 8, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
   if (!await fillRecordOnGrid(puzzleState, 6,  5, 10, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
-  if (!await fillRecordOnGrid(puzzleState, 3, 9, 8, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
-  if (!await fillRecordOnGrid(puzzleState, 4,  7, 9, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
   if (!await fillRecordOnGrid(puzzleState, 6, 10, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
+  if (!await fillRecordOnGrid(puzzleState, 4,  7, 11, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
+  if (!await fillRecordOnGrid(puzzleState, 4,  7, 9, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
+  if (!await fillRecordOnGrid(puzzleState, 3, 9, 8, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
+  if (!await fillRecordOnGrid(puzzleState, 3,  11, 8, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
+  if (!await fillRecordOnGrid(puzzleState, 3,  5, 8, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
+
 
   const payload = await finalizePuzzle(puzzleState);
   return payload;
