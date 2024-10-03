@@ -9,7 +9,7 @@ const generateTemplate = async (puzzleState) => {
   let tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
   let blockGenerated = false;
   let attempts;
-  const attemptsLimit = 75;
+  const attemptsLimit = 50;
 
   // top left
   while (!blockGenerated) {
