@@ -37,7 +37,7 @@ const generateTemplate = async (puzzleState) => {
 
     tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
 
-    if (!await fillRecordOnGrid(tmpPuzzleState, 3, 2, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
+    if (!await fillRecordOnGrid(tmpPuzzleState, 3, 2, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
     if (!await fillRecordOnGrid(tmpPuzzleState, 3, 4, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 7, 0, 8, ORIENTATION_ENUM.COLUMN, 'LEFT_DOWN')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 5, 1, 6, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
@@ -62,7 +62,7 @@ const generateTemplate = async (puzzleState) => {
 
     tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
 
-    if (!await fillRecordOnGrid(tmpPuzzleState, 6, 6, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
+    if (!await fillRecordOnGrid(tmpPuzzleState, 6, 6, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
     if (!await fillRecordOnGrid(tmpPuzzleState, 6, 5, 10, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 3, 9, 8, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 4, 7, 11, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
@@ -88,7 +88,7 @@ const generateTemplate = async (puzzleState) => {
 
     tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
 
-    if (!await fillRecordOnGrid(tmpPuzzleState, 5, 5, 0, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
+    if (!await fillRecordOnGrid(tmpPuzzleState, 5, 5, 0, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
     if (!await fillRecordOnGrid(tmpPuzzleState, 7, 4, 1, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 4, 7, 0, ORIENTATION_ENUM.ROW, 'UP_RIGHT')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 7, 4, 3, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
