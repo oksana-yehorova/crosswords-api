@@ -42,9 +42,9 @@ const generateTemplate = async (puzzleState) => {
     if (!await fillRecordOnGrid(tmpPuzzleState, 6, 5, 1, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 4, 8, 0, ORIENTATION_ENUM.ROW, 'UP_RIGHT')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 6, 5, 3, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
-    if (!await fillRecordOnGrid(tmpPuzzleState, 6, 11, 0, ORIENTATION_ENUM.ROW, 'UP_RIGHT')) continue;
+    if (!await fillRecordOnGrid(tmpPuzzleState, 6, 11, 0, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 3, 8, 2, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
-    if (!await fillRecordOnGrid(tmpPuzzleState, 5, 9, 0, ORIENTATION_ENUM.ROW, 'UP_RIGHT')) continue;
+    if (!await fillRecordOnGrid(tmpPuzzleState, 5, 9, 0, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
 
     blockGenerated = await fillRecordOnGrid(tmpPuzzleState, 7, 4, 5, ORIENTATION_ENUM.COLUMN, 'DOWN');
   }
