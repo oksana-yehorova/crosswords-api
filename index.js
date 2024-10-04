@@ -18,11 +18,11 @@ try {
   require("dotenv").config({path: `.env.${locale}`});
 
   if (args.length === 2) {
-    limit = args[1];
+    gridSize = Number(args[1]);
   }
 
   if (args.length === 3) {
-    gridSize = Number(args[2]);
+    limit = args[2];
   }
 } catch (e) {
   console.log("Failed to load environment variables")
