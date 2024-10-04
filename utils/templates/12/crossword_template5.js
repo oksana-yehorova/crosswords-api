@@ -51,7 +51,7 @@ const generateTemplate = async (puzzleState) => {
     if (!await fillRecordOnGrid(tmpPuzzleState, 2, 5, 5, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 7, 4, 9, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
 
-    blockGenerated = !await fillRecordOnGrid(tmpPuzzleState, 3, 8, 7, ORIENTATION_ENUM.ROW, 'RIGHT');
+    blockGenerated = await fillRecordOnGrid(tmpPuzzleState, 3, 8, 7, ORIENTATION_ENUM.ROW, 'RIGHT');
   }
   puzzleState = JSON.parse(JSON.stringify(tmpPuzzleState));
   blockGenerated = false;
