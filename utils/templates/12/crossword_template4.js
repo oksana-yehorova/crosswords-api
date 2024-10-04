@@ -88,15 +88,16 @@ const generateTemplate = async (puzzleState) => {
         tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
 
         if (!await fillRecordOnGrid(tmpPuzzleState, 5, 0, 5, ORIENTATION_ENUM.COLUMN, 'RIGHT_DOWN')) return false;
+        if (!await fillRecordOnGrid(tmpPuzzleState, 4, 2, 7, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
+        if (!await fillRecordOnGrid(tmpPuzzleState, 3, 0, 9, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
+        if (!await fillRecordOnGrid(tmpPuzzleState, 6, 1, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
+        if (!await fillRecordOnGrid(tmpPuzzleState, 3, 0, 11, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
+        if (!await fillRecordOnGrid(tmpPuzzleState, 4, 3, 7, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
+        if (!await fillRecordOnGrid(tmpPuzzleState, 6, 0, 10, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
+        if (!await fillRecordOnGrid(tmpPuzzleState, 6, 0, 7, ORIENTATION_ENUM.COLUMN, 'RIGHT_DOWN')) continue;
         if (!await fillRecordOnGrid(tmpPuzzleState, 4, 4, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
         if (!await fillRecordOnGrid(tmpPuzzleState, 4, 5, 7, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
         if (!await fillRecordOnGrid(tmpPuzzleState, 6, 0, 7, ORIENTATION_ENUM.COLUMN, 'RIGHT_DOWN')) continue;
-        if (!await fillRecordOnGrid(tmpPuzzleState, 6, 1, 5, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
-        if (!await fillRecordOnGrid(tmpPuzzleState, 6, 0, 10, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
-        if (!await fillRecordOnGrid(tmpPuzzleState, 4, 2, 7, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
-        if (!await fillRecordOnGrid(tmpPuzzleState, 4, 3, 7, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
-        if (!await fillRecordOnGrid(tmpPuzzleState, 3, 0, 11, ORIENTATION_ENUM.COLUMN, 'DOWN')) return false;
-        if (!await fillRecordOnGrid(tmpPuzzleState, 3, 0, 9, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
         if (!await fillRecordOnGrid(tmpPuzzleState, 3, 6, 8, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
 
         blockGenerated = await fillRecordOnGrid(tmpPuzzleState, 4, 4, 11, ORIENTATION_ENUM.COLUMN, 'DOWN');
