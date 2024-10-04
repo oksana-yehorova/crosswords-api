@@ -42,12 +42,12 @@ const generateTemplate = async (puzzleState) => {
 
     tmpPuzzleState = JSON.parse(JSON.stringify(puzzleState));
 
-    if (!await fillRecordOnGrid(tmpPuzzleState, 4, 9, 7, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
+    if (!await fillRecordOnGrid(tmpPuzzleState, 4, 9, 7, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
     if (!await fillRecordOnGrid(tmpPuzzleState, 3, 8, 11, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 5, 6, 8, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 5, 6, 10, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 4, 11, 7, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
-    if (!await fillRecordOnGrid(tmpPuzzleState, 7, 7, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) return false;
+    if (!await fillRecordOnGrid(tmpPuzzleState, 7, 7, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 2, 5, 5, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 7, 4, 9, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
 
