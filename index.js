@@ -17,11 +17,11 @@ try {
 
   require("dotenv").config({path: `.env.${locale}`});
 
-  if (args.length === 2) {
+  if (args.hasOwnProperty(1)) {
     gridSize = Number(args[1]);
   }
 
-  if (args.length === 3) {
+  if (args.hasOwnProperty(2)) {
     limit = args[2];
   }
 } catch (e) {
