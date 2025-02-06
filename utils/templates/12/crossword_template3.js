@@ -19,9 +19,9 @@ const generateTemplate = async (puzzleState) => {
     if (!await fillRecordOnGrid(tmpPuzzleState, 4, 2, 0, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 4, 3, 0, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 5, 0, 3, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
-    if (!await fillRecordOnGrid(tmpPuzzleState, 5, 0, 2, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 7, 0, 0, ORIENTATION_ENUM.ROW, 'DOWN_RIGHT')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 7, 0, 5, ORIENTATION_ENUM.COLUMN, 'LEFT_DOWN')) continue;
+    if (!await fillRecordOnGrid(tmpPuzzleState, 3, 0, 2, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
 
     blockGenerated = await fillRecordOnGrid(tmpPuzzleState, 6, 4, 0, ORIENTATION_ENUM.ROW, 'DOWN_RIGHT');
   }
