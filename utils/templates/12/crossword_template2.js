@@ -49,7 +49,7 @@ const generateTemplate = async (puzzleState) => {
     if (!await fillRecordOnGrid(tmpPuzzleState, 4, 4, 4, ORIENTATION_ENUM.ROW, 'RIGHT')) continue;
     if (!await fillRecordOnGrid(tmpPuzzleState, 5, 2, 5, ORIENTATION_ENUM.COLUMN, 'DOWN')) continue;
 
-    blockGenerated = await fillRecordOnGrid(tmpPuzzleState, 4, 5, 4, ORIENTATION_ENUM.ROW, 'RIGHT');
+    blockGenerated = await fillRecordOnGrid(tmpPuzzleState, 2, 5, 4, ORIENTATION_ENUM.ROW, 'RIGHT');
   }
   puzzleState = JSON.parse(JSON.stringify(tmpPuzzleState));
   blockGenerated = false;
